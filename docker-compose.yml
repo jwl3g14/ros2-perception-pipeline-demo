@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  ros2:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile
+    container_name: ros_demo
+
+    # GPU access
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+
+    # For GUI (Gazebo, RViz) - X11 forwarding
+    volumes:
+      - ./src:/ros_ws/src
+      - ./data:/ros_ws/data
+      - ./models:/ros_ws/models
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+
+    # Network mode for ROS2 discovery
+    network_mode: host
+
+    # Keep container running
+    stdin_open: true
+    tty: true
+    command: bash

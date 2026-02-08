@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+venv/
+.venv/
+
+# ROS2 build artifacts
+build/
+install/
+log/
+
+# Models (large files - download separately)
+models/*.pt
+models/*.onnx
+
+# OS
+.DS_Store
+*.swp
+
+# IDE
+.vscode/
+.idea/
