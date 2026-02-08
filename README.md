@@ -1,23 +1,48 @@
 # ROS Demo - Beverage Detection Pipeline
 
-Learning ROS by building a perception pipeline for retail robotics's shelf-stocking robots.
+Learning ROS2 by building a perception pipeline for retail robotics's shelf-stocking robots.
 
-## Goal
+**Status: Working!** Camera node publishes images, detector node runs YOLO on GPU.
 
-Build a ROS2 perception node that:
-1. Subscribes to camera images (simulated)
-2. Runs YOLOv8 object detection
-3. Publishes detection results
-4. (Bonus) Adds depth estimation
+## Quick Start (Linux PC with NVIDIA GPU)
+
+```bash
+# 1. Clone and setup
+git clone <repo>
+cd ros-perception-demo
+cp .env.example .env
+# Edit .env for your paths
+
+# 2. Build and run
+docker compose build
+docker compose up -d
+docker exec -it ros_demo bash
+
+# 3. Inside container: build ROS2 workspace
+cd /ros_ws
+colcon build
+source install/setup.bash
+
+# 4. Run nodes (2 terminals)
+# Terminal 1:
+ros2 run perception_demo camera_sim_node
+
+# Terminal 2:
+ros2 run perception_demo detector_node
+```
 
 ## Architecture
 
 ```
-┌─────────────────┐     /camera/image      ┌──────────────────┐     /detections
-│  Camera Node    │ ──────────────────────▶│  Perception Node │ ──────────────────▶
-│  (publishes     │    sensor_msgs/Image   │  (YOLOv8 +       │    DetectionArray
-│   test images)  │                        │   PyTorch)       │
-└─────────────────┘                        └──────────────────┘
+┌─────────────────┐     /camera/image_raw   ┌──────────────────┐     /detections
+│ camera_sim_node │ ───────────────────────▶│  detector_node   │ ──────────────────▶
+│ (publishes      │    sensor_msgs/Image    │  (YOLOv8 +       │   Detection2DArray
+│  test images)   │                         │   CUDA)          │
+└─────────────────┘                         └──────────────────┘
+                                                    │
+                                                    │ /detections/image
+                                                    ▼
+                                            (annotated image)
 ```
 
 ## Why Docker for ROS?
@@ -201,50 +226,51 @@ Camera Driver Node                    Your Perception Node                 Plann
 ## Project Structure
 
 ```
-ros_demo/
-├── README.md                 # This file
+ros-perception-demo/
+├── README.md
+├── docker-compose.yml        # Container config (GPU, volumes, X11)
+├── .env.example              # Template for local paths
 ├── docker/
-│   ├── Dockerfile           # ROS2 + PyTorch environment
-│   └── docker-compose.yml   # Easy container management
+│   └── Dockerfile            # ROS2 Humble + PyTorch + CUDA
 ├── src/
-│   └── perception_pkg/      # Our ROS2 package
-│       ├── perception_pkg/
-│       │   ├── __init__.py
-│       │   ├── detection_node.py    # Main perception node
-│       │   └── camera_node.py       # Simulated camera
+│   └── perception_demo/      # ROS2 Python package
 │       ├── package.xml
-│       └── setup.py
+│       ├── setup.py
+│       ├── setup.cfg
+│       ├── resource/
+│       └── perception_demo/
+│           ├── __init__.py
+│           ├── detector_node.py     # YOLO detection node
+│           └── camera_sim_node.py   # Test image publisher
 ├── data/
-│   └── test_images/         # Test images (from beverage demo)
-└── models/
-    └── yolov8n.pt           # YOLO model weights
+│   └── test_images/          # Test images
+└── models/                   # Model weights (*.pt gitignored)
 ```
 
 ## Setup
 
 ### Prerequisites
-- Docker Desktop installed ✓
-- This repo cloned
+- Linux PC with NVIDIA GPU (tested: Pop!_OS 22.04, RTX 2060)
+- Docker with NVIDIA Container Toolkit
+- Git
 
-### Build and Run
+### Environment Variables (.env)
 
 ```bash
-# Build the Docker image
-docker-compose build
+# External data path for large files (not in git)
+ROS_DEMO_DATA=/mnt/your-drive/ros-perception-demo-data
 
-# Start the container
-docker-compose up -d
+# X11 display for GUI (check with `echo $DISPLAY`)
+DISPLAY=:0
+```
 
-# Enter the container
-docker exec -it ros_demo bash
+### GUI Access (Gazebo, RViz)
 
-# Inside container: build the workspace
-colcon build
-source install/setup.bash
+```bash
+# Allow Docker to access X11 display
+xhost +local:docker
 
-# Run the nodes
-ros2 run perception_pkg camera_node &
-ros2 run perception_pkg detection_node
+# Then docker compose up will show GUI on your monitor
 ```
 
 ## Learning Path
