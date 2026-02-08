@@ -2,7 +2,7 @@
 
 Learning ROS2 by building a perception pipeline for retail robotics's shelf-stocking robots.
 
-**Status: Working!** Camera node publishes images, detector node runs YOLO on GPU.
+**Status: Working!** Camera → detector → depth → tracker pipeline complete. BoT-SORT tracking with trajectory visualization.
 
 ## Quick Start (Linux PC with NVIDIA GPU)
 
@@ -28,15 +28,19 @@ source install/setup.bash
 ros2 run perception_demo camera_node --ros-args -p source:=webcam
 # Or: -p source:=sim (static test images)
 
-# Terminal 2: Detector
+# Terminal 2: Detector (detection only, no tracking)
 ros2 run perception_demo detector_node --ros-args -p model:=yolo
+
+# Terminal 2 (alt): Tracker (detection + persistent IDs)
+ros2 run perception_demo tracker_node --ros-args -p tracker:=botsort
+# Or: -p tracker:=bytetrack
 
 # Terminal 3: Depth (optional)
 ros2 run perception_demo depth_node --ros-args -p method:=midas
 
 # Terminal 4: Visualize
 ros2 run rqt_image_view rqt_image_view
-# → Select: /detections/image or /depth/image
+# → Select: /tracks/image (with trajectory trails) or /detections/image or /depth/image
 ```
 
 ## Architecture
@@ -52,7 +56,13 @@ ros2 run rqt_image_view rqt_image_view
         │ source:=                                  │ model:=
         │ • sim (static images) ✓                   │ • yolo (YOLOv8) ✓
         │ • webcam (USB camera) ✓                   │
-        │ • gazebo (future)                         │
+        │ • gazebo (future)                  ┌──────────────────┐     /tracks
+        │                                    │  tracker_node    │ ──────────────────▶
+        │                                    │ (with trail viz) │   Detection2DArray
+        │                                    └──────────────────┘   + track IDs
+        │                                           │ tracker:=
+        │                                           │ • botsort (default) ✓
+        │                                           │ • bytetrack ✓
         │                                           │
         │                                    ┌──────────────────┐
         │                                    │   depth_node     │ → /depth/image
@@ -62,13 +72,12 @@ ros2 run rqt_image_view rqt_image_view
         │                                           │ • realsense (future)
         │
         │                                    Future nodes:
-        │                                    • tracking_node (multi-object tracking)
         │                                    • pose_node (6DoF pose estimation)
         │                                    • segmentation_node
         │
-                                                    │ /detections/image
+                                                    │ /tracks/image
                                                     ▼
-                                            (annotated image for viz)
+                                            (annotated image with trajectory trails)
 ```
 
 **YOLOv8**: Auto-downloads on first run (~6MB), runs on PyTorch + CUDA.
@@ -104,8 +113,8 @@ ros2 run rqt_image_view rqt_image_view
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 
-Current:  ✅ camera_node, detector_node, depth_node
-Future:   ⬜ tracking_node, pose_node, segmentation_node, grasp_node
+Current:  ✅ camera_node, detector_node, depth_node, tracker_node
+Future:   ⬜ pose_node, segmentation_node, grasp_node
 Later:    ⬜ planner_node, controller_node (requires Gazebo + robot model)
 ```
 
@@ -336,8 +345,10 @@ ros-perception-demo/
 │               │   └── webcam.py   # USB webcam
 │               ├── depth/    # Depth estimation
 │               │   └── midas.py    # Monocular (MiDaS)
-│               └── detector/ # Object detection
-│                   └── yolo.py     # YOLOv8
+│               ├── detector/ # Object detection
+│               │   └── yolo.py     # YOLOv8
+│               └── tracker/  # Object tracking
+│                   └── yolo_tracker.py  # BoT-SORT / ByteTrack
 ├── data/
 │   └── test_images/          # Test images
 └── models/                   # Model weights (*.pt gitignored)

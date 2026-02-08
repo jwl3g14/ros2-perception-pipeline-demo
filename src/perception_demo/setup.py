@@ -22,6 +22,7 @@ setup(
             'camera_node = perception_demo.nodes.camera:main',
             'depth_node = perception_demo.nodes.depth:main',
             'detector_node = perception_demo.nodes.detector:main',
+            'tracker_node = perception_demo.nodes.tracker:main',
         ],
     },
 )
