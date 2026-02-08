@@ -17,9 +17,15 @@ services:
 
     # For GUI (Gazebo, RViz) - X11 forwarding
     volumes:
+      # Source code (synced via git)
       - ./src:/ros_ws/src
+      # Local data in repo (small files)
       - ./data:/ros_ws/data
+      # Model weights
       - ./models:/ros_ws/models
+      # Large datasets (external path from .env)
+      - ${ROS_DEMO_DATA}:/ros_ws/external_data
+      # X11 socket for GUI (Gazebo, RViz)
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
 
     # Network mode for ROS2 discovery
