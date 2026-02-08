@@ -9,6 +9,7 @@ This is the core perception node - similar to what retail robotics uses
 for detecting products on store shelves.
 """
 
+import os
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
@@ -17,13 +18,17 @@ from cv_bridge import CvBridge
 import torch
 from ultralytics import YOLO
 
+# Default model path (persistent storage on external drive)
+DEFAULT_MODEL_DIR = '/ros_ws/external_data/models'
+DEFAULT_MODEL_PATH = f'{DEFAULT_MODEL_DIR}/yolov8n.pt'
+
 
 class DetectorNode(Node):
     def __init__(self):
         super().__init__('detector_node')
 
         # Parameters
-        self.declare_parameter('model_path', 'yolov8n.pt')
+        self.declare_parameter('model_path', DEFAULT_MODEL_PATH)
         self.declare_parameter('confidence_threshold', 0.5)
         self.declare_parameter('device', 'cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -31,7 +36,13 @@ class DetectorNode(Node):
         self.conf_threshold = self.get_parameter('confidence_threshold').value
         device = self.get_parameter('device').value
 
-        # Load YOLO model
+        # Ensure model directory exists
+        model_dir = os.path.dirname(model_path)
+        if model_dir and not os.path.exists(model_dir):
+            os.makedirs(model_dir, exist_ok=True)
+            self.get_logger().info(f'Created model directory: {model_dir}')
+
+        # Load YOLO model (downloads automatically if not found)
         self.get_logger().info(f'Loading YOLO model: {model_path}')
         self.model = YOLO(model_path)
         self.model.to(device)
