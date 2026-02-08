@@ -24,15 +24,19 @@ colcon build
 source install/setup.bash
 
 # 4. Run nodes (in separate terminals)
-# Terminal 1: Camera (currently: static test images)
-ros2 run perception_demo camera_sim_node
+# Terminal 1: Camera
+ros2 run perception_demo camera_node --ros-args -p source:=webcam
+# Or: -p source:=sim (static test images)
 
-# Terminal 2: Perception (currently: YOLO detection)
-ros2 run perception_demo detector_node
+# Terminal 2: Detector
+ros2 run perception_demo detector_node --ros-args -p model:=yolo
 
-# Terminal 3: Visualize detections
+# Terminal 3: Depth (optional)
+ros2 run perception_demo depth_node --ros-args -p method:=midas
+
+# Terminal 4: Visualize
 ros2 run rqt_image_view rqt_image_view
-# → Select topic: /detections/image
+# → Select: /detections/image or /depth/image
 ```
 
 ## Architecture
@@ -45,14 +49,17 @@ ros2 run rqt_image_view rqt_image_view
 │                 │    sensor_msgs/Image    │                  │   Detection2DArray
 └─────────────────┘                         └──────────────────┘
         │                                           │
-        │ Swappable modes:                          │ Current: detection only
-        │ • camera_sim_node (static images) ✓       │ • detector_node (YOLOv8) ✓
-        │ • Gazebo camera (physics sim)             │
-        │ • Real USB/RealSense camera               │ Future:
-        │                                           │ • Depth estimation (MiDaS)
-        │                                           │ • Object tracking
-        │                                           │ • Pose estimation
-        │                                           │ • Segmentation
+        │ source:=                                  │ model:=
+        │ • sim (static images) ✓                   │ • yolo (YOLOv8) ✓
+        │ • webcam (USB camera) ✓                   │
+        │ • gazebo (future)                         │
+        │                                           │
+        │                                    ┌──────────────────┐
+        │                                    │   depth_node     │ → /depth/image
+        │                                    └──────────────────┘
+        │                                           │ method:=
+        │                                           │ • midas (monocular) ✓
+        │                                           │ • realsense (future)
         │                                           │
                                                     │ /detections/image
                                                     ▼
@@ -281,12 +288,15 @@ ros-perception-demo/
 │   └── perception_demo/      # ROS2 Python package
 │       ├── package.xml
 │       ├── setup.py
-│       ├── setup.cfg
-│       ├── resource/
 │       └── perception_demo/
-│           ├── __init__.py
-│           ├── detector_node.py     # YOLO detection node
-│           └── camera_sim_node.py   # Test image publisher
+│           └── nodes/
+│               ├── camera/   # Camera sources
+│               │   ├── sim.py      # Static test images
+│               │   └── webcam.py   # USB webcam
+│               ├── depth/    # Depth estimation
+│               │   └── midas.py    # Monocular (MiDaS)
+│               └── detector/ # Object detection
+│                   └── yolo.py     # YOLOv8
 ├── data/
 │   └── test_images/          # Test images
 └── models/                   # Model weights (*.pt gitignored)
