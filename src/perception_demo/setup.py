@@ -19,10 +19,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'detector_node = perception_demo.detector_node:main',
-            'depth_node = perception_demo.depth_node:main',
-            'camera_sim_node = perception_demo.camera_sim_node:main',
-            'camera_webcam_node = perception_demo.camera_webcam_node:main',
+            'camera_node = perception_demo.nodes.camera:main',
+            'depth_node = perception_demo.nodes.depth:main',
+            'detector_node = perception_demo.nodes.detector:main',
         ],
     },
 )

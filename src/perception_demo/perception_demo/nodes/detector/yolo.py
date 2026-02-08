@@ -2,28 +2,27 @@
 """
 YOLO Object Detection Node
 
-Subscribes to: /camera/image_raw (sensor_msgs/Image)
-Publishes to:  /detections (vision_msgs/Detection2DArray)
-
-This is the core perception node - similar to what retail robotics uses
-for detecting products on store shelves.
+Usage:
+  ros2 run perception_demo detector_node --ros-args -p model:=yolo
+  ros2 run perception_demo detector_node --ros-args -p model:=yolo -p model_path:=/path/to/custom.pt
 """
 
 import os
-import rclpy
+import torch
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose
 from cv_bridge import CvBridge
-import torch
 from ultralytics import YOLO
 
-# Default model path (persistent storage on external drive)
+# Default model path (persistent storage)
 DEFAULT_MODEL_DIR = '/ros_ws/external_data/models'
 DEFAULT_MODEL_PATH = f'{DEFAULT_MODEL_DIR}/yolov8n.pt'
 
 
-class DetectorNode(Node):
+class YoloDetectorNode(Node):
+    """Object detection using YOLO."""
+
     def __init__(self):
         super().__init__('detector_node')
 
@@ -42,38 +41,28 @@ class DetectorNode(Node):
             os.makedirs(model_dir, exist_ok=True)
             self.get_logger().info(f'Created model directory: {model_dir}')
 
-        # Load YOLO model (downloads automatically if not found)
+        # Load YOLO model
         self.get_logger().info(f'Loading YOLO model: {model_path}')
         self.model = YOLO(model_path)
         self.model.to(device)
         self.get_logger().info(f'Model loaded on {device}')
 
-        # CV Bridge for ROS <-> OpenCV conversion
+        # CV Bridge
         self.bridge = CvBridge()
 
-        # Subscriber: camera images
+        # Subscriber
         self.image_sub = self.create_subscription(
             Image,
             '/camera/image_raw',
             self.image_callback,
-            10  # QoS queue size
-        )
-
-        # Publisher: detections
-        self.detection_pub = self.create_publisher(
-            Detection2DArray,
-            '/detections',
             10
         )
 
-        # Publisher: annotated image (for visualization)
-        self.annotated_pub = self.create_publisher(
-            Image,
-            '/detections/image',
-            10
-        )
+        # Publishers
+        self.detection_pub = self.create_publisher(Detection2DArray, '/detections', 10)
+        self.annotated_pub = self.create_publisher(Image, '/detections/image', 10)
 
-        self.get_logger().info('Detector node ready. Waiting for images on /camera/image_raw...')
+        self.get_logger().info('Detector node ready (model: yolo). Waiting for images...')
 
     def image_callback(self, msg: Image):
         """Process incoming camera image and publish detections."""
@@ -114,7 +103,7 @@ class DetectorNode(Node):
         self.detection_pub.publish(detection_array)
 
         # Publish annotated image
-        annotated = results.plot()  # YOLO's built-in visualization
+        annotated = results.plot()
         annotated_msg = self.bridge.cv2_to_imgmsg(annotated, encoding='bgr8')
         annotated_msg.header = msg.header
         self.annotated_pub.publish(annotated_msg)
@@ -123,20 +112,3 @@ class DetectorNode(Node):
         n_detections = len(detection_array.detections)
         if n_detections > 0:
             self.get_logger().info(f'Detected {n_detections} objects')
-
-
-def main(args=None):
-    rclpy.init(args=args)
-    node = DetectorNode()
-
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()
-
-
-if __name__ == '__main__':
-    main()

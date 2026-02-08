@@ -1,33 +1,34 @@
 #!/usr/bin/env python3
 """
-Depth Estimation Node (MiDaS)
+MiDaS Depth Estimation Node
 
-Subscribes to: /camera/image_raw (sensor_msgs/Image)
-Publishes to:  /depth/image (sensor_msgs/Image) - depth visualization
-               /depth/raw (sensor_msgs/Image) - raw depth values (32FC1)
+Monocular depth estimation - infers depth from a single RGB image.
 
-Uses MiDaS for monocular depth estimation - estimates depth from a single RGB image.
+Usage:
+  ros2 run perception_demo depth_node --ros-args -p method:=midas
+  ros2 run perception_demo depth_node --ros-args -p method:=midas -p model_type:=DPT_Large
 """
 
 import os
-import rclpy
+import cv2
+import numpy as np
+import torch
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-import torch
-import cv2
-import numpy as np
 
 # Default model path (persistent storage)
 DEFAULT_MODEL_DIR = '/ros_ws/external_data/models'
 
 
-class DepthNode(Node):
+class MidasDepthNode(Node):
+    """Depth estimation using MiDaS (monocular)."""
+
     def __init__(self):
         super().__init__('depth_node')
 
         # Parameters
-        self.declare_parameter('model_type', 'MiDaS_small')  # Options: MiDaS_small, DPT_Hybrid, DPT_Large
+        self.declare_parameter('model_type', 'MiDaS_small')  # MiDaS_small, DPT_Hybrid, DPT_Large
         self.declare_parameter('device', 'cuda' if torch.cuda.is_available() else 'cpu')
 
         model_type = self.get_parameter('model_type').value
@@ -67,18 +68,10 @@ class DepthNode(Node):
         )
 
         # Publishers
-        self.depth_viz_pub = self.create_publisher(
-            Image,
-            '/depth/image',
-            10
-        )
-        self.depth_raw_pub = self.create_publisher(
-            Image,
-            '/depth/raw',
-            10
-        )
+        self.depth_viz_pub = self.create_publisher(Image, '/depth/image', 10)
+        self.depth_raw_pub = self.create_publisher(Image, '/depth/raw', 10)
 
-        self.get_logger().info('Depth node ready. Waiting for images on /camera/image_raw...')
+        self.get_logger().info('Depth node ready (method: midas). Waiting for images...')
 
     def image_callback(self, msg: Image):
         """Process image and publish depth estimation."""
@@ -114,20 +107,3 @@ class DepthNode(Node):
         depth_raw_msg = self.bridge.cv2_to_imgmsg(depth.astype(np.float32), encoding='32FC1')
         depth_raw_msg.header = msg.header
         self.depth_raw_pub.publish(depth_raw_msg)
-
-
-def main(args=None):
-    rclpy.init(args=args)
-    node = DepthNode()
-
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()
-
-
-if __name__ == '__main__':
-    main()
