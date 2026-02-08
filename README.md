@@ -73,6 +73,42 @@ ros2 run rqt_image_view rqt_image_view
 
 **YOLOv8**: Auto-downloads on first run (~6MB), runs on PyTorch + CUDA.
 
+### Full Pipeline Vision (retail robotics-style)
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              PERCEPTION                                       │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  camera_node ──▶ detector_node ──▶ depth_node ──▶ tracking_node             │
+│       │              │                 │               │                     │
+│   RGB image     2D bboxes          depth map      object IDs                │
+│                      │                 │               │                     │
+│                      └────────┬────────┘               │                     │
+│                               ▼                        │                     │
+│                        pose_node ◀─────────────────────┘                     │
+│                            │                                                 │
+│                      6DoF object pose                                        │
+│                            │                                                 │
+├────────────────────────────┼─────────────────────────────────────────────────┤
+│                            ▼                                                 │
+│                     grasp_node                                               │
+│                          │                                                   │
+│                   grasp points                                               │
+│                          │                                                   │
+├──────────────────────────┼───────────────────────────────────────────────────┤
+│                          ▼                          PLANNING & CONTROL       │
+│                    planner_node ──▶ controller_node ──▶ robot                │
+│                          │               │                                   │
+│                    motion plan      joint commands                           │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+Current:  ✅ camera_node, detector_node, depth_node
+Future:   ⬜ tracking_node, pose_node, segmentation_node, grasp_node
+Later:    ⬜ planner_node, controller_node (requires Gazebo + robot model)
+```
+
 ### Development Workflow
 
 ```
