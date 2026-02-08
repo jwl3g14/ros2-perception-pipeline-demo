@@ -22,3 +22,7 @@ models/*.onnx
 # IDE
 .vscode/
 .idea/
+*.code-workspace
+
+# Environment (local paths)
+.env
