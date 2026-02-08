@@ -52,6 +52,7 @@ ros2 run rqt_image_view rqt_image_view
         │                                           │ • Depth estimation (MiDaS)
         │                                           │ • Object tracking
         │                                           │ • Pose estimation
+        │                                           │ • Segmentation
         │                                           │
                                                     │ /detections/image
                                                     ▼
@@ -447,3 +448,51 @@ This would be impressive to mention in practice: *"I built a ROS2 + Gazebo simul
 - [cv_bridge (ROS ↔ OpenCV)](https://github.com/ros-perception/vision_opencv)
 - [Gazebo Sim](https://gazebosim.org/)
 - [ROS2 + Gazebo Integration](https://gazebosim.org/docs/harmonic/ros2_integration)
+
+---
+
+## Appendix
+
+### RQT Tools
+
+**RQT** = ROS Qt GUI toolkit. Useful tools:
+
+| Tool | Command | Purpose |
+|------|---------|---------|
+| Image viewer | `ros2 run rqt_image_view rqt_image_view` | View camera/detection images |
+| Topic monitor | `ros2 run rqt_topic rqt_topic` | See all topics and messages |
+| Node graph | `ros2 run rqt_graph rqt_graph` | Visualize node connections |
+| Console | `ros2 run rqt_console rqt_console` | View logs from all nodes |
+
+### Docker on Mac (Alternative Setup)
+
+If you don't have a Linux PC with GPU, you can run on Mac with limitations:
+
+**Docker on Mac = Linux inside a container.**
+
+- ROS is built for Ubuntu - native Mac install is painful
+- Docker runs a lightweight Linux environment
+- Your Mac stays clean, ROS runs in isolated Linux container
+- Industry standard - retail robotics likely uses Docker too
+- Easy to delete and start fresh
+- Reproducible environment (like Python venv but for entire OS)
+
+```
+┌─────────────────────────────────────┐
+│           Your Mac (macOS)          │
+│  ┌───────────────────────────────┐  │
+│  │     Docker Container (Linux)  │  │
+│  │  ┌─────────────────────────┐  │  │
+│  │  │   ROS2 + PyTorch        │  │  │
+│  │  │   Your perception nodes │  │  │
+│  │  └─────────────────────────┘  │  │
+│  └───────────────────────────────┘  │
+└─────────────────────────────────────┘
+```
+
+**Limitations on Mac:**
+- No NVIDIA GPU → CPU inference only (slower)
+- GUI (Gazebo/RViz) requires XQuartz or VNC
+- Apple Silicon (M1/M2) needs ARM images
+
+**Recommendation:** Use Linux PC with NVIDIA GPU for best experience.
