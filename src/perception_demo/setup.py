@@ -20,6 +20,7 @@ setup(
     entry_points={
         'console_scripts': [
             'detector_node = perception_demo.detector_node:main',
+            'depth_node = perception_demo.depth_node:main',
             'camera_sim_node = perception_demo.camera_sim_node:main',
             'camera_webcam_node = perception_demo.camera_webcam_node:main',
         ],
