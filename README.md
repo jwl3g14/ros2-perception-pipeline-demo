@@ -23,50 +23,94 @@ cd /ros_ws
 colcon build
 source install/setup.bash
 
-# 4. Run nodes (2 terminals)
-# Terminal 1:
+# 4. Run nodes (in separate terminals)
+# Terminal 1: Camera (currently: static test images)
 ros2 run perception_demo camera_sim_node
 
-# Terminal 2:
+# Terminal 2: Perception (currently: YOLO detection)
 ros2 run perception_demo detector_node
+
+# Terminal 3: Visualize detections
+ros2 run rqt_image_view rqt_image_view
+# → Select topic: /detections/image
 ```
 
 ## Architecture
 
+### ROS2 Node Pipeline
+
 ```
 ┌─────────────────┐     /camera/image_raw   ┌──────────────────┐     /detections
-│ camera_sim_node │ ───────────────────────▶│  detector_node   │ ──────────────────▶
-│ (publishes      │    sensor_msgs/Image    │  (YOLOv8 +       │   Detection2DArray
-│  test images)   │                         │   CUDA)          │
+│   camera_node   │ ───────────────────────▶│  perception_node │ ──────────────────▶
+│                 │    sensor_msgs/Image    │                  │   Detection2DArray
 └─────────────────┘                         └──────────────────┘
-                                                    │
+        │                                           │
+        │ Swappable modes:                          │ Current: detection only
+        │ • camera_sim_node (static images) ✓       │ • detector_node (YOLOv8) ✓
+        │ • Gazebo camera (physics sim)             │
+        │ • Real USB/RealSense camera               │ Future:
+        │                                           │ • Depth estimation (MiDaS)
+        │                                           │ • Object tracking
+        │                                           │ • Pose estimation
+        │                                           │
                                                     │ /detections/image
                                                     ▼
-                                            (annotated image)
+                                            (annotated image for viz)
 ```
 
-## Why Docker for ROS?
+**YOLOv8**: Auto-downloads on first run (~6MB), runs on PyTorch + CUDA.
 
-**Docker on Mac = Linux inside a container.**
-
-- ROS is built for Ubuntu - native Mac install is painful
-- Docker runs a lightweight Linux environment
-- Your Mac stays clean, ROS runs in isolated Linux container
-- Industry standard - retail robotics likely uses Docker too
-- Easy to delete and start fresh
-- Reproducible environment (like Python venv but for entire OS)
+### Development Workflow
 
 ```
-┌─────────────────────────────────────┐
-│           Your Mac (macOS)          │
-│  ┌───────────────────────────────┐  │
-│  │     Docker Container (Linux)  │  │
-│  │  ┌─────────────────────────┐  │  │
-│  │  │   ROS2 + PyTorch        │  │  │
-│  │  │   Your perception nodes │  │  │
-│  │  └─────────────────────────┘  │  │
-│  └───────────────────────────────┘  │
-└─────────────────────────────────────┘
+┌─────────────────┐      git push      ┌─────────────────┐
+│   MacBook Pro   │ ─────────────────▶ │     Gitea       │
+│   (code editor) │                    │   (git server)  │
+└─────────────────┘                    └─────────────────┘
+                                               │
+                                               │ git pull
+                                               ▼
+                                       ┌─────────────────────────────────────┐
+                                       │      Linux PC (Pop!_OS + RTX)       │
+                                       │  ┌───────────────────────────────┐  │
+                                       │  │   Docker Container            │  │
+                                       │  │  ┌─────────────────────────┐  │  │
+                                       │  │  │ ROS2 + PyTorch + CUDA   │  │  │
+                                       │  │  │ camera_node             │  │  │
+                                       │  │  │ perception_node         │  │  │
+                                       │  │  └─────────────────────────┘  │  │
+                                       │  └───────────────────────────────┘  │
+                                       │           │                         │
+                                       │           │ X11 (GUI)               │
+                                       │           ▼                         │
+                                       │      ┌─────────┐                    │
+                                       │      │ Monitor │ ← Gazebo/RViz      │
+                                       │      └─────────┘                    │
+                                       └─────────────────────────────────────┘
+                                               │
+                                               │ Future: same code runs on
+                                               ▼
+                                       ┌─────────────────┐
+                                       │  Robot (Jetson) │
+                                       │  Real cameras   │
+                                       └─────────────────┘
+```
+
+**The magic:** Same ROS2 code runs in simulation (Docker) and on real robot. Just swap camera source.
+
+### Visualization
+
+View detections in real-time:
+
+```bash
+# Inside container, Terminal 3:
+ros2 run rqt_image_view rqt_image_view
+# Select topic: /detections/image
+```
+
+Or echo detection messages:
+```bash
+ros2 topic echo /detections
 ```
 
 ---
