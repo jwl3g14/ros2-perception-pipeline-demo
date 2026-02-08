@@ -45,7 +45,7 @@ ros2 run rqt_image_view rqt_image_view
 
 ```
 ┌─────────────────┐     /camera/image_raw   ┌──────────────────┐     /detections
-│   camera_node   │ ───────────────────────▶│  perception_node │ ──────────────────▶
+│   camera_node   │ ───────────────────────▶│  detector_node   │ ──────────────────▶
 │                 │    sensor_msgs/Image    │                  │   Detection2DArray
 └─────────────────┘                         └──────────────────┘
         │                                           │
@@ -60,7 +60,12 @@ ros2 run rqt_image_view rqt_image_view
         │                                           │ method:=
         │                                           │ • midas (monocular) ✓
         │                                           │ • realsense (future)
-        │                                           │
+        │
+        │                                    Future nodes:
+        │                                    • tracking_node (multi-object tracking)
+        │                                    • pose_node (6DoF pose estimation)
+        │                                    • segmentation_node
+        │
                                                     │ /detections/image
                                                     ▼
                                             (annotated image for viz)
