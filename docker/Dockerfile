@@ -25,10 +25,11 @@ RUN pip3 install --no-cache-dir \
     torch torchvision --index-url https://download.pytorch.org/whl/cu118
 
 # Install other Python dependencies
+# Pin numpy<2 for compatibility with ROS cv_bridge (compiled with numpy 1.x)
 RUN pip3 install --no-cache-dir \
+    "numpy<2" \
     ultralytics \
-    opencv-python \
-    numpy
+    opencv-python
 
 # Set up workspace
 WORKDIR /ros_ws
