@@ -27,7 +27,8 @@ RUN pip3 install --no-cache-dir \
 # Install other Python dependencies
 RUN pip3 install --no-cache-dir \
     ultralytics \
-    opencv-python
+    opencv-python \
+    timm
 
 # Pin numpy<2 AFTER other packages (ultralytics pulls numpy>=2, but cv_bridge needs <2)
 RUN pip3 install --no-cache-dir "numpy<2"
