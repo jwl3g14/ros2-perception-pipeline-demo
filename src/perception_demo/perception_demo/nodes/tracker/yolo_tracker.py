@@ -53,12 +53,14 @@ class YoloTrackerNode(Node):
         self.declare_parameter('device', 'cuda' if torch.cuda.is_available() else 'cpu')
         self.declare_parameter('show_trails', True)
         self.declare_parameter('trail_length', TRAIL_LENGTH)
+        self.declare_parameter('camera_topic', '/camera/image_raw')
 
         model_path = self.get_parameter('model_path').value
         self.conf_threshold = self.get_parameter('confidence_threshold').value
         device = self.get_parameter('device').value
         self.show_trails = self.get_parameter('show_trails').value
         self.trail_length = self.get_parameter('trail_length').value
+        camera_topic = self.get_parameter('camera_topic').value
 
         # Ensure model directory exists
         model_dir = os.path.dirname(model_path)
@@ -80,10 +82,11 @@ class YoloTrackerNode(Node):
         # Subscriber
         self.image_sub = self.create_subscription(
             Image,
-            '/camera/image_raw',
+            camera_topic,
             self.image_callback,
             10
         )
+        self.get_logger().info(f'Subscribed to camera topic: {camera_topic}')
 
         # Publishers
         self.detection_pub = self.create_publisher(Detection2DArray, '/tracks', 10)
