@@ -2,7 +2,7 @@
 
 Learning ROS2 by building a perception pipeline for retail robotics's shelf-stocking robots.
 
-**Status: Working!** Camera → detector → depth → tracker pipeline complete. BoT-SORT tracking with trajectory visualization.
+**Status: Working!** Full perception pipeline with Gazebo simulation. Robot arm with camera, ros2_control, BoT-SORT tracking.
 
 ## Quick Start (Linux PC with NVIDIA GPU)
 
@@ -23,24 +23,30 @@ cd /ros_ws
 colcon build
 source install/setup.bash
 
-# 4. Run nodes (in separate terminals)
+# 4. Option A: Gazebo Simulation (robot arm + shelf)
+# Terminal 1: Launch Gazebo
+ros2 launch robot_description simulation.launch.py
+
+# Terminal 2: Tracker
+ros2 run perception_demo tracker_node
+
+# Terminal 3: Visualize
+ros2 run rqt_image_view rqt_image_view
+# → Select: /camera/image_raw (arm camera) or /tracks/image
+
+# Terminal 4: Move the arm
+ros2 action send_goal /joint_trajectory_controller/follow_joint_trajectory control_msgs/action/FollowJointTrajectory "{trajectory: {joint_names: [shoulder_pan_joint, shoulder_lift_joint, elbow_joint, wrist_joint], points: [{positions: [0.0, 1.0, -1.5, 0.0], time_from_start: {sec: 2}}]}}"
+
+# 4. Option B: Webcam (real camera)
 # Terminal 1: Camera
 ros2 run perception_demo camera_node --ros-args -p source:=webcam
-# Or: -p source:=sim (static test images)
 
-# Terminal 2: Detector (detection only, no tracking)
-ros2 run perception_demo detector_node --ros-args -p model:=yolo
+# Terminal 2: Tracker
+ros2 run perception_demo tracker_node
 
-# Terminal 2 (alt): Tracker (detection + persistent IDs)
-ros2 run perception_demo tracker_node --ros-args -p tracker:=botsort
-# Or: -p tracker:=bytetrack
-
-# Terminal 3: Depth (optional)
-ros2 run perception_demo depth_node --ros-args -p method:=midas
-
-# Terminal 4: Visualize
+# Terminal 3: Visualize
 ros2 run rqt_image_view rqt_image_view
-# → Select: /tracks/image (with trajectory trails) or /detections/image or /depth/image
+# → Select: /tracks/image
 ```
 
 ## Architecture
@@ -56,7 +62,7 @@ ros2 run rqt_image_view rqt_image_view
         │ source:=                                  │ model:=
         │ • sim (static images) ✓                   │ • yolo (YOLOv8) ✓
         │ • webcam (USB camera) ✓                   │
-        │ • gazebo (future)                  ┌──────────────────┐     /tracks
+        │ • gazebo (ros2 launch) ✓           ┌──────────────────┐     /tracks
         │                                    │  tracker_node    │ ──────────────────▶
         │                                    │ (with trail viz) │   Detection2DArray
         │                                    └──────────────────┘   + track IDs
@@ -113,14 +119,13 @@ ros2 run rqt_image_view rqt_image_view
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 
-Current:  ✅ camera_node, detector_node, depth_node, tracker_node
-Next:     🔲 Gazebo simulation (Panda arm + shelf world)
+Current:  ✅ camera_node, detector_node, depth_node, tracker_node, Gazebo simulation
 Future:   ⬜ pose_node, segmentation_node, grasp_node
 Later:    ⬜ planner_node, controller_node
 
-Gazebo Roadmap:
-  v1: Panda arm + simple shelf + simulated camera (current goal)
-  v2: Custom TX-style SCARA arm + convenience store shelf with real product models
+Gazebo Simulation:
+  ✅ v1: Simple 4-DOF arm + shelf + simulated camera + ros2_control
+  ⬜ v2: Custom TX-style SCARA arm + convenience store shelf with real product models
 ```
 
 ### Development Workflow
@@ -338,22 +343,31 @@ ros-perception-demo/
 ├── docker-compose.yml        # Container config (GPU, volumes, X11)
 ├── .env.example              # Template for local paths
 ├── docker/
-│   └── Dockerfile            # ROS2 Humble + PyTorch + CUDA
+│   └── Dockerfile            # ROS2 Humble + PyTorch + CUDA + ros2_control
 ├── src/
-│   └── perception_demo/      # ROS2 Python package
-│       ├── package.xml
-│       ├── setup.py
-│       └── perception_demo/
-│           └── nodes/
-│               ├── camera/   # Camera sources
-│               │   ├── sim.py      # Static test images
-│               │   └── webcam.py   # USB webcam
-│               ├── depth/    # Depth estimation
-│               │   └── midas.py    # Monocular (MiDaS)
-│               ├── detector/ # Object detection
-│               │   └── yolo.py     # YOLOv8
-│               └── tracker/  # Object tracking
-│                   └── yolo_tracker.py  # BoT-SORT / ByteTrack
+│   ├── perception_demo/      # ROS2 Python package (perception nodes)
+│   │   ├── package.xml
+│   │   ├── setup.py
+│   │   └── perception_demo/
+│   │       └── nodes/
+│   │           ├── camera/   # Camera sources
+│   │           │   ├── sim.py      # Static test images
+│   │           │   └── webcam.py   # USB webcam
+│   │           ├── depth/    # Depth estimation
+│   │           │   └── midas.py    # Monocular (MiDaS)
+│   │           ├── detector/ # Object detection
+│   │           │   └── yolo.py     # YOLOv8
+│   │           └── tracker/  # Object tracking
+│   │               └── yolo_tracker.py  # BoT-SORT / ByteTrack
+│   └── robot_description/    # ROS2 CMake package (Gazebo simulation)
+│       ├── urdf/
+│       │   └── robot.urdf.xacro    # 4-DOF arm with camera
+│       ├── worlds/
+│       │   └── shelf.world         # Convenience store shelf
+│       ├── config/
+│       │   └── controllers.yaml    # ros2_control config
+│       └── launch/
+│           └── simulation.launch.py
 ├── data/
 │   └── test_images/          # Test images
 └── models/                   # Model weights (*.pt gitignored)
@@ -431,6 +445,56 @@ ros2 run <package> <node>
 # Launch multiple nodes
 ros2 launch <package> <launch_file.py>
 ```
+
+---
+
+## Gazebo Simulation (This Demo)
+
+### What We Built
+
+- **4-DOF robot arm** with camera on end-effector
+- **Shelf world** with colored products (bottles, boxes, cans)
+- **ros2_control** for joint position control
+- Camera publishes to `/camera/image_raw` (same topic as webcam)
+
+### Moving the Arm
+
+```bash
+# Move arm to look at shelf
+ros2 action send_goal /joint_trajectory_controller/follow_joint_trajectory \
+  control_msgs/action/FollowJointTrajectory \
+  "{trajectory: {joint_names: [shoulder_pan_joint, shoulder_lift_joint, elbow_joint, wrist_joint], \
+  points: [{positions: [0.0, 1.0, -1.5, 0.0], time_from_start: {sec: 2}}]}}"
+```
+
+**Joint positions in radians:**
+| Joint | Axis | Range | Description |
+|-------|------|-------|-------------|
+| shoulder_pan | Z | ±3.14 | Rotate base left/right |
+| shoulder_lift | Y | ±1.57 | Tilt forward/back |
+| elbow | Y | ±2.5 | Bend elbow |
+| wrist | Z | ±3.14 | Rotate wrist |
+
+### ros2_control Architecture
+
+```
+Your command (action goal)
+    ↓
+joint_trajectory_controller (interpolates smooth path)
+    ↓
+ros2_control hardware interface
+    ↓
+gazebo_ros2_control plugin
+    ↓
+Gazebo physics simulation
+    ↓
+Joint states published to /joint_states
+```
+
+**Why ros2_control?**
+- Industry standard for robot control
+- Same interface for simulation AND real robot
+- Just swap the hardware interface plugin
 
 ---
 
