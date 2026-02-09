@@ -5,12 +5,13 @@ Launch Gazebo simulation with robot arm and shelf world.
 Usage:
   ros2 launch robot_description simulation.launch.py
   ros2 launch robot_description simulation.launch.py gui:=false  # headless
+  ros2 launch robot_description simulation.launch.py world:=realistic  # realistic 3D models
 """
 
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, ExecuteProcess, RegisterEventHandler
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, ExecuteProcess, RegisterEventHandler, OpaqueFunction
 from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -19,21 +20,23 @@ from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 
 
-def generate_launch_description():
+def launch_setup(context, *args, **kwargs):
+    """Setup function that runs after launch arguments are resolved."""
+    # Get resolved values
+    world_type = LaunchConfiguration('world').perform(context)
+
     # Package paths
     pkg_robot_description = get_package_share_directory('robot_description')
     pkg_gazebo_ros = get_package_share_directory('gazebo_ros')
 
+    # Select world file based on argument
+    if world_type == 'realistic':
+        world_file = os.path.join(pkg_robot_description, 'worlds', 'shelf_realistic.world')
+    else:
+        world_file = os.path.join(pkg_robot_description, 'worlds', 'shelf.world')
+
     # File paths
     urdf_file = os.path.join(pkg_robot_description, 'urdf', 'robot.urdf.xacro')
-    world_file = os.path.join(pkg_robot_description, 'worlds', 'shelf.world')
-
-    # Launch arguments
-    gui_arg = DeclareLaunchArgument(
-        'gui',
-        default_value='true',
-        description='Start Gazebo with GUI'
-    )
 
     # Robot description from xacro
     robot_description = ParameterValue(
@@ -109,12 +112,32 @@ def generate_launch_description():
         )
     )
 
-    return LaunchDescription([
-        gui_arg,
+    return [
         gazebo_server,
         gazebo_client,
         robot_state_publisher,
         spawn_robot,
         spawn_controllers_after_robot,
         spawn_trajectory_after_broadcaster,
+    ]
+
+
+def generate_launch_description():
+    # Launch arguments
+    gui_arg = DeclareLaunchArgument(
+        'gui',
+        default_value='true',
+        description='Start Gazebo with GUI'
+    )
+
+    world_arg = DeclareLaunchArgument(
+        'world',
+        default_value='simple',
+        description='World to load: simple (colored primitives) or realistic (3D models)'
+    )
+
+    return LaunchDescription([
+        gui_arg,
+        world_arg,
+        OpaqueFunction(function=launch_setup),
     ])

@@ -1,0 +1,230 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="shelf_world">
+
+    <!-- Better lighting for realism -->
+    <light name="sun" type="directional">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.9 0.9 0.9 1</diffuse>
+      <specular>0.5 0.5 0.5 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.5 0.5 -1</direction>
+    </light>
+
+    <!-- Fill light to reduce harsh shadows -->
+    <light name="fill_light" type="directional">
+      <cast_shadows>false</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.4 0.4 0.5 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <direction>0.5 -0.5 -0.5</direction>
+    </light>
+
+    <!-- Ground plane -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- Shelf structure (keeping our custom shelf) -->
+    <model name="shelf">
+      <static>true</static>
+      <pose>0.8 0 0 0 0 0</pose>
+
+      <!-- Back panel -->
+      <link name="back_panel">
+        <pose>0.15 0 0.6 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.02 0.8 1.2</size></box>
+          </geometry>
+          <material>
+            <ambient>0.6 0.4 0.2 1</ambient>
+            <diffuse>0.6 0.4 0.2 1</diffuse>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box><size>0.02 0.8 1.2</size></box>
+          </geometry>
+        </collision>
+      </link>
+
+      <!-- Bottom shelf -->
+      <link name="shelf_bottom">
+        <pose>0 0 0.3 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.3 0.8 0.02</size></box>
+          </geometry>
+          <material>
+            <ambient>0.6 0.4 0.2 1</ambient>
+            <diffuse>0.6 0.4 0.2 1</diffuse>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box><size>0.3 0.8 0.02</size></box>
+          </geometry>
+        </collision>
+      </link>
+
+      <!-- Middle shelf -->
+      <link name="shelf_middle">
+        <pose>0 0 0.6 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.3 0.8 0.02</size></box>
+          </geometry>
+          <material>
+            <ambient>0.6 0.4 0.2 1</ambient>
+            <diffuse>0.6 0.4 0.2 1</diffuse>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box><size>0.3 0.8 0.02</size></box>
+          </geometry>
+        </collision>
+      </link>
+
+      <!-- Top shelf -->
+      <link name="shelf_top">
+        <pose>0 0 0.9 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.3 0.8 0.02</size></box>
+          </geometry>
+          <material>
+            <ambient>0.6 0.4 0.2 1</ambient>
+            <diffuse>0.6 0.4 0.2 1</diffuse>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box><size>0.3 0.8 0.02</size></box>
+          </geometry>
+        </collision>
+      </link>
+
+      <!-- Left side panel -->
+      <link name="left_panel">
+        <pose>0 -0.4 0.6 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.3 0.02 1.2</size></box>
+          </geometry>
+          <material>
+            <ambient>0.6 0.4 0.2 1</ambient>
+            <diffuse>0.6 0.4 0.2 1</diffuse>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box><size>0.3 0.02 1.2</size></box>
+          </geometry>
+        </collision>
+      </link>
+
+      <!-- Right side panel -->
+      <link name="right_panel">
+        <pose>0 0.4 0.6 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.3 0.02 1.2</size></box>
+          </geometry>
+          <material>
+            <ambient>0.6 0.4 0.2 1</ambient>
+            <diffuse>0.6 0.4 0.2 1</diffuse>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box><size>0.3 0.02 1.2</size></box>
+          </geometry>
+        </collision>
+      </link>
+    </model>
+
+    <!-- ==================== BOTTOM SHELF: Coke Cans ==================== -->
+    <include>
+      <uri>model://coke_can</uri>
+      <name>coke_1</name>
+      <pose>0.75 -0.2 0.35 0 0 0</pose>
+    </include>
+
+    <include>
+      <uri>model://coke_can</uri>
+      <name>coke_2</name>
+      <pose>0.75 -0.1 0.35 0 0 0</pose>
+    </include>
+
+    <include>
+      <uri>model://coke_can</uri>
+      <name>coke_3</name>
+      <pose>0.75 0 0.35 0 0 0</pose>
+    </include>
+
+    <include>
+      <uri>model://coke_can</uri>
+      <name>coke_4</name>
+      <pose>0.75 0.1 0.35 0 0 0</pose>
+    </include>
+
+    <include>
+      <uri>model://coke_can</uri>
+      <name>coke_5</name>
+      <pose>0.75 0.2 0.35 0 0 0</pose>
+    </include>
+
+    <!-- ==================== MIDDLE SHELF: Beer bottles ==================== -->
+    <include>
+      <uri>model://beer</uri>
+      <name>beer_1</name>
+      <pose>0.75 -0.2 0.62 0 0 0</pose>
+    </include>
+
+    <include>
+      <uri>model://beer</uri>
+      <name>beer_2</name>
+      <pose>0.75 -0.05 0.62 0 0 0</pose>
+    </include>
+
+    <include>
+      <uri>model://beer</uri>
+      <name>beer_3</name>
+      <pose>0.75 0.1 0.62 0 0 0</pose>
+    </include>
+
+    <include>
+      <uri>model://beer</uri>
+      <name>beer_4</name>
+      <pose>0.75 0.25 0.62 0 0 0</pose>
+    </include>
+
+    <!-- ==================== TOP SHELF: Bowls/Cups ==================== -->
+    <include>
+      <uri>model://bowl</uri>
+      <name>bowl_1</name>
+      <pose>0.75 -0.2 0.93 0 0 0</pose>
+    </include>
+
+    <include>
+      <uri>model://plastic_cup</uri>
+      <name>cup_1</name>
+      <pose>0.75 0 0.92 0 0 0</pose>
+    </include>
+
+    <include>
+      <uri>model://bowl</uri>
+      <name>bowl_2</name>
+      <pose>0.75 0.2 0.93 0 0 0</pose>
+    </include>
+
+  </world>
+</sdf>
