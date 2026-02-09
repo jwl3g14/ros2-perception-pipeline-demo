@@ -23,6 +23,7 @@ setup(
             'depth_node = perception_demo.nodes.depth:main',
             'detector_node = perception_demo.nodes.detector:main',
             'tracker_node = perception_demo.nodes.tracker:main',
+            'teleop_node = perception_demo.nodes.teleop:main',
         ],
     },
 )
