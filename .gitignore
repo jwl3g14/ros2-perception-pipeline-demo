@@ -11,9 +11,11 @@ build/
 install/
 log/
 
-# Models (large files - download separately)
-models/*.pt
+# Models (base models - download separately)
+models/yolo*.pt
 models/*.onnx
+# Keep custom fine-tuned models
+!models/cold_drinks.pt
 
 # OS
 .DS_Store
