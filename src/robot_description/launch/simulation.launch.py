@@ -10,8 +10,9 @@ Usage:
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, ExecuteProcess
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, ExecuteProcess, RegisterEventHandler
 from launch.conditions import IfCondition
+from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, Command
 from launch_ros.actions import Node
@@ -81,9 +82,32 @@ def generate_launch_description():
         output='screen'
     )
 
-    # Joint state publisher GUI (for manual joint control)
-    # Note: Run separately if needed - can conflict with Gazebo joint states
-    # ros2 run joint_state_publisher_gui joint_state_publisher_gui
+    # Spawn joint_state_broadcaster (after robot is spawned)
+    spawn_joint_state_broadcaster = ExecuteProcess(
+        cmd=['ros2', 'control', 'load_controller', '--set-state', 'active', 'joint_state_broadcaster'],
+        output='screen'
+    )
+
+    # Spawn joint_trajectory_controller (after joint_state_broadcaster)
+    spawn_joint_trajectory_controller = ExecuteProcess(
+        cmd=['ros2', 'control', 'load_controller', '--set-state', 'active', 'joint_trajectory_controller'],
+        output='screen'
+    )
+
+    # Chain controller spawning after robot spawn
+    spawn_controllers_after_robot = RegisterEventHandler(
+        event_handler=OnProcessExit(
+            target_action=spawn_robot,
+            on_exit=[spawn_joint_state_broadcaster],
+        )
+    )
+
+    spawn_trajectory_after_broadcaster = RegisterEventHandler(
+        event_handler=OnProcessExit(
+            target_action=spawn_joint_state_broadcaster,
+            on_exit=[spawn_joint_trajectory_controller],
+        )
+    )
 
     return LaunchDescription([
         gui_arg,
@@ -91,4 +115,6 @@ def generate_launch_description():
         gazebo_client,
         robot_state_publisher,
         spawn_robot,
+        spawn_controllers_after_robot,
+        spawn_trajectory_after_broadcaster,
     ])

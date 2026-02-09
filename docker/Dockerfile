@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
     ros-humble-image-transport \
     ros-humble-gazebo-ros-pkgs \
     ros-humble-gazebo-ros2-control \
+    ros-humble-ros2-control \
+    ros-humble-ros2-controllers \
     ros-humble-xacro \
     ros-humble-robot-state-publisher \
     ros-humble-joint-state-publisher-gui \

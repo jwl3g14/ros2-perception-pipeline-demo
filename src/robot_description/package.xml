@@ -15,6 +15,10 @@
   <depend>joint_state_publisher_gui</depend>
   <depend>gazebo_ros</depend>
   <depend>gazebo_ros2_control</depend>
+  <depend>controller_manager</depend>
+  <depend>joint_state_broadcaster</depend>
+  <depend>joint_trajectory_controller</depend>
+  <depend>ros2_control</depend>
 
   <exec_depend>rviz2</exec_depend>
 
