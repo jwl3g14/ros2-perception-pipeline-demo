@@ -387,5 +387,44 @@
       </link>
     </model>
 
+    <!-- Fixed camera looking at shelf (for perception demo) -->
+    <model name="fixed_camera">
+      <static>true</static>
+      <pose>0.3 0 0.7 0 0.3 0</pose>  <!-- Position looking at middle shelf -->
+      <link name="camera_link">
+        <visual name="visual">
+          <geometry>
+            <box><size>0.05 0.1 0.05</size></box>
+          </geometry>
+          <material>
+            <ambient>0.1 0.1 0.1 1</ambient>
+            <diffuse>0.1 0.1 0.1 1</diffuse>
+          </material>
+        </visual>
+        <sensor type="camera" name="fixed_shelf_camera">
+          <update_rate>30.0</update_rate>
+          <camera name="shelf_cam">
+            <horizontal_fov>1.2</horizontal_fov>
+            <image>
+              <width>640</width>
+              <height>480</height>
+              <format>R8G8B8</format>
+            </image>
+            <clip>
+              <near>0.02</near>
+              <far>10</far>
+            </clip>
+          </camera>
+          <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
+            <ros>
+              <namespace>/</namespace>
+            </ros>
+            <camera_name>shelf_camera</camera_name>
+            <frame_name>shelf_camera_frame</frame_name>
+          </plugin>
+        </sensor>
+      </link>
+    </model>
+
   </world>
 </sdf>

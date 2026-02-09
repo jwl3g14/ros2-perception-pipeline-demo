@@ -81,6 +81,10 @@ def generate_launch_description():
         output='screen'
     )
 
+    # Joint state publisher GUI (for manual joint control)
+    # Note: Run separately if needed - can conflict with Gazebo joint states
+    # ros2 run joint_state_publisher_gui joint_state_publisher_gui
+
     return LaunchDescription([
         gui_arg,
         gazebo_server,
