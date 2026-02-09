@@ -114,8 +114,13 @@ ros2 run rqt_image_view rqt_image_view
 └──────────────────────────────────────────────────────────────────────────────┘
 
 Current:  ✅ camera_node, detector_node, depth_node, tracker_node
+Next:     🔲 Gazebo simulation (Panda arm + shelf world)
 Future:   ⬜ pose_node, segmentation_node, grasp_node
-Later:    ⬜ planner_node, controller_node (requires Gazebo + robot model)
+Later:    ⬜ planner_node, controller_node
+
+Gazebo Roadmap:
+  v1: Panda arm + simple shelf + simulated camera (current goal)
+  v2: Custom TX-style SCARA arm + convenience store shelf with real product models
 ```
 
 ### Development Workflow
