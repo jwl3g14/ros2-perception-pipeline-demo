@@ -23,30 +23,30 @@ cd /ros_ws
 colcon build
 source install/setup.bash
 
-# 4. Option A: Gazebo Simulation (robot arm + shelf)
-# Terminal 1: Launch Gazebo
+# 4. Gazebo Simulation (robot arm + shelf) - RECOMMENDED
+# Terminal 1: Launch Gazebo (spawns robot, shelf, starts ros2_control)
 ros2 launch robot_description simulation.launch.py
-
-# Terminal 2: Tracker
+# Terminal 2: Run tracker (subscribes to /camera/image_raw from Gazebo)
 ros2 run perception_demo tracker_node
-
-# Terminal 3: Visualize
+# Terminal 3: Visualize detections
 ros2 run rqt_image_view rqt_image_view
-# → Select: /camera/image_raw (arm camera) or /tracks/image
-
-# Terminal 4: Move the arm
+# → Select: /camera/image_raw (arm camera) or /tracks/image (with boxes + trails)
+# Terminal 4: Move the arm to look at shelf
 ros2 action send_goal /joint_trajectory_controller/follow_joint_trajectory control_msgs/action/FollowJointTrajectory "{trajectory: {joint_names: [shoulder_pan_joint, shoulder_lift_joint, elbow_joint, wrist_joint], points: [{positions: [0.0, 1.0, -1.5, 0.0], time_from_start: {sec: 2}}]}}"
 
-# 4. Option B: Webcam (real camera)
-# Terminal 1: Camera
-ros2 run perception_demo camera_node --ros-args -p source:=webcam
-
-# Terminal 2: Tracker
-ros2 run perception_demo tracker_node
-
-# Terminal 3: Visualize
+# 5. Alternative: Real Camera (instead of Gazebo)
+# Terminal 1: Camera source (pick one)
+ros2 run perception_demo camera_node --ros-args -p source:=webcam  # USB webcam
+ros2 run perception_demo camera_node --ros-args -p source:=sim     # Static test images
+# Terminal 2: Perception (pick one)
+ros2 run perception_demo tracker_node --ros-args -p tracker:=botsort   # Detection + tracking (BoT-SORT, default)
+ros2 run perception_demo tracker_node --ros-args -p tracker:=bytetrack # Detection + tracking (ByteTrack)
+ros2 run perception_demo detector_node --ros-args -p model:=yolo       # Detection only (YOLO)
+# Terminal 3: Depth estimation (optional)
+ros2 run perception_demo depth_node --ros-args -p method:=midas    # Monocular depth
+# Terminal 4: Visualize
 ros2 run rqt_image_view rqt_image_view
-# → Select: /tracks/image
+# → Topics: /tracks/image, /detections/image, /depth/image
 ```
 
 ## Architecture
