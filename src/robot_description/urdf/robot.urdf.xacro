@@ -239,7 +239,7 @@
   <joint name="camera_joint" type="fixed">
     <parent link="ee_link"/>
     <child link="camera_link"/>
-    <origin xyz="0.05 0 0" rpy="0 1.57 0"/>  <!-- Camera points forward/down -->
+    <origin xyz="0.05 0 0" rpy="0 0 0"/>  <!-- Camera points same direction as gripper -->
   </joint>
 
   <!-- Camera optical frame (Z forward, X right, Y down - standard camera convention) -->
