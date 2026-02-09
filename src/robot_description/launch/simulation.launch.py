@@ -81,19 +81,10 @@ def generate_launch_description():
         output='screen'
     )
 
-    # Joint state publisher GUI (manual joint control)
-    joint_state_publisher_gui = Node(
-        package='joint_state_publisher_gui',
-        executable='joint_state_publisher_gui',
-        name='joint_state_publisher_gui',
-        output='screen'
-    )
-
     return LaunchDescription([
         gui_arg,
         gazebo_server,
         gazebo_client,
         robot_state_publisher,
         spawn_robot,
-        joint_state_publisher_gui,
     ])
