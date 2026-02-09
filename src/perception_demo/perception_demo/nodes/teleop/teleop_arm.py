@@ -4,8 +4,8 @@ Keyboard teleoperation for robot arm.
 
 Key mappings:
   Q/W - shoulder_pan (rotate base left/right)
-  A/S - shoulder_lift (tilt up/down)
-  Z/X - elbow (bend)
+  Z/X - shoulder_lift (tilt up/down)
+  A/S - elbow (bend)
   1/2 - wrist (rotate)
 
   SPACE - reset to home position
@@ -56,10 +56,10 @@ class TeleopArm(Node):
         self.key_map = {
             'q': (0, 1),   # shoulder_pan +
             'w': (0, -1),  # shoulder_pan -
-            'a': (1, 1),   # shoulder_lift +
-            's': (1, -1),  # shoulder_lift -
-            'z': (2, 1),   # elbow +
-            'x': (2, -1),  # elbow -
+            'z': (1, 1),   # shoulder_lift +
+            'x': (1, -1),  # shoulder_lift -
+            'a': (2, 1),   # elbow +
+            's': (2, -1),  # elbow -
             '1': (3, 1),   # wrist +
             '2': (3, -1),  # wrist -
         }
@@ -142,8 +142,8 @@ def main(args=None):
     print('='*50)
     print('Key mappings:')
     print('  Q/W - shoulder_pan (rotate base)')
-    print('  A/S - shoulder_lift (tilt)')
-    print('  Z/X - elbow (bend)')
+    print('  Z/X - shoulder_lift (tilt)')
+    print('  A/S - elbow (bend)')
     print('  1/2 - wrist (rotate)')
     print('')
     print('  SPACE - reset to home')
