@@ -373,6 +373,22 @@ ros-perception-demo/
 └── models/                   # Model weights (*.pt gitignored)
 ```
 
+### Why is everything under robot_description?
+
+**ROS convention.** For simple projects, one package holds everything about the robot:
+- URDF/meshes (robot model)
+- Worlds (environments for this robot)
+- Controllers (ros2_control config)
+- Launch files
+
+**For larger projects, you'd split:**
+```
+my_robot_description/   # Just URDF, meshes
+my_robot_gazebo/        # Worlds, Gazebo plugins
+my_robot_control/       # Controllers
+my_robot_bringup/       # Launch files
+```
+
 ## Setup
 
 ### Prerequisites
