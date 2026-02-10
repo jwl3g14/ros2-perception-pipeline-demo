@@ -100,8 +100,12 @@ class GraspPredictorNode(Node):
         # Convert depth
         depth_map = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding='passthrough')
 
+        # Handle 3-channel depth (visualization) - convert to single channel
+        if len(depth_map.shape) == 3:
+            depth_map = cv2.cvtColor(depth_map, cv2.COLOR_BGR2GRAY).astype(np.float32)
+
         # Normalize if needed
-        if depth_map.dtype == np.float32:
+        if depth_map.dtype == np.float32 or depth_map.max() > 1:
             depth_map = depth_map / (depth_map.max() + 1e-6)
 
         # Predict grasps
