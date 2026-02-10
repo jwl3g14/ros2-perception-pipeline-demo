@@ -24,6 +24,8 @@ setup(
             'detector_node = perception_demo.nodes.detector:main',
             'tracker_node = perception_demo.nodes.tracker:main',
             'teleop_node = perception_demo.nodes.teleop:main',
+            'pose_node = perception_demo.nodes.pose:main',
+            'grasp_node = perception_demo.nodes.grasp:main',
         ],
     },
 )
