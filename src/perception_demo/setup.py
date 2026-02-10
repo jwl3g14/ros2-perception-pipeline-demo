@@ -26,6 +26,7 @@ setup(
             'teleop_node = perception_demo.nodes.teleop:main',
             'pose_node = perception_demo.nodes.pose:main',
             'grasp_node = perception_demo.nodes.grasp:main',
+            'viz_node = perception_demo.nodes.viz:main',
         ],
     },
 )
