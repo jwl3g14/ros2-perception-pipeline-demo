@@ -1,645 +1,598 @@
-# ROS Demo - Beverage Detection Pipeline
+# ROS2 Perception Pipeline Demo
 
-Learning ROS2 by building a perception pipeline for retail robotics's shelf-stocking robots.
+A complete perception-to-grasp pipeline for retail robotics, built with ROS2 Humble.
 
-**Status: Working!** Full perception pipeline with Gazebo simulation. Robot arm with camera, ros2_control, BoT-SORT tracking.
+**Author:** Jin Wei Lim
+**Purpose:** 
 
-## Quick Start (Linux PC with NVIDIA GPU)
+## What This Demo Shows
+
+```
+Camera → Detection → Tracking → Depth → Pose → Grasp
+   ✅        ✅         ✅        ✅      ✅      ✅
+```
+
+| Component | Implementation | Description |
+|-----------|----------------|-------------|
+| Detection | YOLOv8 + fine-tuned model | Detects beverages (27 classes) |
+| Tracking | BoT-SORT / ByteTrack | Persistent object IDs with trajectory trails |
+| Depth | MiDaS monocular | Relative depth estimation |
+| Pose | Geometry-based | 3D position from 2D + depth |
+| Grasp | Heuristic | Grasp point prediction (side/top) |
+| Simulation | Gazebo + ros2_control | 4-DOF arm with camera |
+
+---
+
+## Full System Capabilities
+
+### Implementation Status
+
+| Capability | Status | Notes |
+|------------|--------|-------|
+| **Inference Pipeline** | ✅ Done | Real-time detection → grasp |
+| **Tracking** | ✅ Done | BoT-SORT with persistent IDs |
+| **Depth Estimation** | ✅ Done | MiDaS monocular |
+| **Pose Estimation** | ✅ Done | Geometry-based (swappable) |
+| **Grasp Prediction** | ✅ Done | Heuristic (swappable) |
+| **Simulation** | ✅ Done | Gazebo with realistic models |
+| **ROS2 Integration** | ✅ Done | Modular node architecture |
+| **Visualization** | ✅ Done | Multi-stream overlay |
+| **Fine-tuned Model** | ✅ Done | 27 beverage classes |
+| **Training Pipeline** | ❌ Not implemented | See PyTorch demo |
+| **Data Annotation** | ❌ Not implemented | Would use Roboflow/CVAT |
+| **Synthetic Data Gen** | ❌ Not implemented | Could add to Gazebo |
+| **Motion Planning** | ❌ Not implemented | Would use MoveIt2 |
+| **Grasp Execution** | ❌ Not implemented | Would add gripper control |
+| **Failure Recovery** | ❌ Not implemented | Would add error handling |
+
+---
+
+## Production System Architecture
+
+A complete retail robotics system has multiple phases:
+
+### Phase 1: Training Pipeline (Offline)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     TRAINING PIPELINE                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────────────┐    ┌──────────────────┐                  │
+│  │  Synthetic Data  │    │    Real Data     │                  │
+│  │  (Simulation)    │    │  (Store Images)  │                  │
+│  └────────┬─────────┘    └────────┬─────────┘                  │
+│           │                       │                             │
+│           │  Domain Randomization │  Manual Annotation          │
+│           │  - Random lighting    │  - Roboflow/CVAT            │
+│           │  - Random placement   │  - Shop-provided images     │
+│           │  - Random camera      │  - Edge cases               │
+│           │                       │                             │
+│           └───────────┬───────────┘                             │
+│                       ▼                                         │
+│              ┌─────────────────┐                                │
+│              │  Train / Fine-  │                                │
+│              │  tune YOLOv8    │                                │
+│              └────────┬────────┘                                │
+│                       ▼                                         │
+│              ┌─────────────────┐                                │
+│              │  Validate on    │                                │
+│              │  Test Set       │                                │
+│              └────────┬────────┘                                │
+│                       ▼                                         │
+│              ┌─────────────────┐                                │
+│              │  Export Model   │ → cold_drinks.pt               │
+│              └─────────────────┘                                │
+│                                                                 │
+│  Status: ❌ Not in ROS demo (see PyTorch demo for fine-tuning) │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Data Sources:**
+| Source | Method | Ground Truth |
+|--------|--------|--------------|
+| Simulation (Gazebo/Isaac) | Render with domain randomization | Auto-labeled (free) |
+| Store images | Shop provides photos | Manual annotation |
+| CAD models | Manufacturer provides | Perfect 3D models |
+| On-robot collection | Robot captures during operation | Human labels |
+
+### Phase 2: Deployment Pipeline (Per-Store Setup)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    DEPLOYMENT PIPELINE                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────────┐                                           │
+│  │  Install Robot  │                                           │
+│  └────────┬────────┘                                           │
+│           ▼                                                     │
+│  ┌─────────────────┐    ┌─────────────────┐                    │
+│  │ Camera Calib    │    │ Robot-Camera    │                    │
+│  │ (intrinsics)    │    │ Transform (TF)  │                    │
+│  └────────┬────────┘    └────────┬────────┘                    │
+│           └───────────┬──────────┘                              │
+│                       ▼                                         │
+│  ┌─────────────────────────────────┐                           │
+│  │  Shelf Mapping                  │                           │
+│  │  - Where are product locations? │                           │
+│  │  - What goes where?             │                           │
+│  └────────────────┬────────────────┘                           │
+│                   ▼                                             │
+│  ┌─────────────────────────────────┐                           │
+│  │  Load Pre-trained Model         │                           │
+│  │  (or fine-tune on store data)   │                           │
+│  └────────────────┬────────────────┘                           │
+│                   ▼                                             │
+│  ┌─────────────────────────────────┐                           │
+│  │  Test & Validate                │                           │
+│  └─────────────────────────────────┘                           │
+│                                                                 │
+│  Status: ⚠️ Partial (simulation only, no real calibration)     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Phase 3: Operation Pipeline (Live Working Loop)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    OPERATION PIPELINE                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                   PERCEPTION LOOP                        │   │
+│  │  ┌────────┐  ┌─────────┐  ┌───────┐  ┌──────┐  ┌──────┐│   │
+│  │  │ Camera │→ │ Detect  │→ │ Track │→ │ Pose │→ │Grasp ││   │
+│  │  └────────┘  └─────────┘  └───────┘  └──────┘  └──────┘│   │
+│  │                                                         │   │
+│  │  Status: ✅ IMPLEMENTED                                 │   │
+│  └────────────────────────────┬────────────────────────────┘   │
+│                               ▼                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                   DECISION LOOP                          │   │
+│  │                                                          │   │
+│  │  Check inventory:                                        │   │
+│  │  - Product missing? → Need restock                       │   │
+│  │  - Product misplaced? → Need rearrange                   │   │
+│  │  - Product fallen? → Need pickup                         │   │
+│  │  - Shelf full? → No action                               │   │
+│  │                                                          │   │
+│  │  Status: ❌ NOT IMPLEMENTED                              │   │
+│  └────────────────────────────┬────────────────────────────┘   │
+│                               ▼                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                   EXECUTION LOOP                         │   │
+│  │                                                          │   │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐ │   │
+│  │  │ Plan     │→ │ Execute  │→ │ Verify   │→ │ Update  │ │   │
+│  │  │ Motion   │  │ Grasp    │  │ Success  │  │ State   │ │   │
+│  │  └──────────┘  └──────────┘  └──────────┘  └─────────┘ │   │
+│  │                                                          │   │
+│  │  Status: ❌ NOT IMPLEMENTED (would use MoveIt2)         │   │
+│  └────────────────────────────┬────────────────────────────┘   │
+│                               ▼                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                   ERROR HANDLING                         │   │
+│  │                                                          │   │
+│  │  If grasp fails:                                         │   │
+│  │  - Retry with adjusted pose                              │   │
+│  │  - Try alternative grasp point                           │   │
+│  │  - Request teleoperator assistance                       │   │
+│  │                                                          │   │
+│  │  If unknown object:                                      │   │
+│  │  - Log for training data                                 │   │
+│  │  - Request human classification                          │   │
+│  │                                                          │   │
+│  │  Status: ❌ NOT IMPLEMENTED                              │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Phase 4: Continuous Improvement (Ongoing)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                 CONTINUOUS IMPROVEMENT                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                   ACTIVE LEARNING                        │   │
+│  │                                                          │   │
+│  │  Deploy → Detect → Low Confidence? → Human Review        │   │
+│  │                          ↓                               │   │
+│  │                   High Confidence → Log for validation   │   │
+│  │                                                          │   │
+│  │  Collect failure cases → Retrain → Deploy update         │   │
+│  │                                                          │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  New Products:                                                  │
+│  1. Store provides images/CAD                                   │
+│  2. Add to training data                                        │
+│  3. Fine-tune model                                             │
+│  4. OTA update to robot                                         │
+│                                                                 │
+│  Status: ❌ NOT IMPLEMENTED                                     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Demo vs Production Comparison
+
+| Aspect | This Demo | Production System |
+|--------|-----------|-------------------|
+| **Perception** | ✅ YOLOv8 + MiDaS | RGB-D sensor, FoundationPose |
+| **Tracking** | ✅ BoT-SORT | Same, or transformer-based |
+| **Grasp Planning** | ✅ Heuristic | Contact-GraspNet, Dex-Net |
+| **Motion Planning** | ❌ Teleop only | MoveIt2 + collision avoidance |
+| **Depth** | ✅ Monocular (relative) | RGB-D (metric) |
+| **Training** | ❌ Pre-trained | Domain randomization + fine-tune |
+| **Failure Recovery** | ❌ None | Retry + teleop fallback |
+| **Multi-store Deploy** | ❌ N/A | Same model, per-store calibration |
+
+---
+
+## Quick Start
+
+### Prerequisites
+- Linux PC with NVIDIA GPU (tested: Pop!_OS, RTX 2060)
+- Docker with NVIDIA Container Toolkit
+- Git
+
+### Setup
 
 ```bash
-# 1. Clone and setup
+# Clone and setup
 git clone <repo>
 cd ros-perception-demo
 cp .env.example .env
-# Edit .env for your paths
 
-# 2. Build and run
+# Build and enter container
 docker compose build
 docker compose up -d
 docker exec -it ros_demo bash
 
-# 3. Inside container: build ROS2 workspace
+# Inside container: build
 cd /ros_ws
-colcon build
+colcon build --packages-select perception_demo robot_description
 source install/setup.bash
 
-# 4. Gazebo Simulation (robot arm + shelf) - RECOMMENDED
-# Terminal 1: Launch Gazebo (spawns robot, shelf, starts ros2_control)
-ros2 launch robot_description simulation.launch.py
-# Terminal 2: Run tracker (subscribes to /camera/image_raw from Gazebo)
-ros2 run perception_demo tracker_node
-# Terminal 3: Visualize detections
-ros2 run rqt_image_view rqt_image_view
-# → Select: /camera/image_raw (arm camera) or /tracks/image (with boxes + trails)
-# Terminal 4: Move the arm to look at shelf
-ros2 action send_goal /joint_trajectory_controller/follow_joint_trajectory control_msgs/action/FollowJointTrajectory "{trajectory: {joint_names: [shoulder_pan_joint, shoulder_lift_joint, elbow_joint, wrist_joint], points: [{positions: [0.0, 1.0, -1.5, 0.0], time_from_start: {sec: 2}}]}}"
+# Allow X11 display (run on host, not in container)
+xhost +local:docker
+```
 
-# 5. Alternative: Real Camera (instead of Gazebo)
-# Terminal 1: Camera source (pick one)
-ros2 run perception_demo camera_node --ros-args -p source:=webcam  # USB webcam
-ros2 run perception_demo camera_node --ros-args -p source:=sim     # Static test images
-# Terminal 2: Perception (pick one)
-ros2 run perception_demo tracker_node --ros-args -p tracker:=botsort   # Detection + tracking (BoT-SORT, default)
-ros2 run perception_demo tracker_node --ros-args -p tracker:=bytetrack # Detection + tracking (ByteTrack)
-ros2 run perception_demo detector_node --ros-args -p model:=yolo       # Detection only (YOLO)
-# Terminal 3: Depth estimation (optional)
-ros2 run perception_demo depth_node --ros-args -p method:=midas    # Monocular depth
+### Run Full Pipeline
+
+```bash
+# Terminal 1: Gazebo simulation
+ros2 launch robot_description simulation.launch.py world:=realistic
+
+# Terminal 2: Perception pipeline (all in background)
+ros2 run perception_demo tracker_node --ros-args \
+  -p model_path:=/ros_ws/models/cold_drinks.pt \
+  -p camera_topic:=/camera/image_raw &
+ros2 run perception_demo depth_node &
+ros2 run perception_demo object_estimator_node &
+ros2 run perception_demo grasp_node &
+ros2 run perception_demo viz_node
+
+# Terminal 3: Keyboard teleop for arm
+ros2 run perception_demo teleop_node
+
 # Terminal 4: Visualize
 ros2 run rqt_image_view rqt_image_view
-# → Topics: /tracks/image, /detections/image, /depth/image
+# Select: /viz/grid (3-up view) or /viz/overlay (combined)
 ```
+
+### Teleop Controls
+
+```
+Q/W - Rotate base (shoulder pan)
+X/Z - Tilt arm (shoulder lift)
+S/A - Bend elbow
+1/2 - Rotate wrist
+
+SPACE - Reset to home
+ESC   - Quit
+```
+
+---
 
 ## Architecture
 
-### ROS2 Node Pipeline
+### Node Pipeline
 
 ```
-┌─────────────────┐     /camera/image_raw   ┌──────────────────┐     /detections
-│   camera_node   │ ───────────────────────▶│  detector_node   │ ──────────────────▶
-│                 │    sensor_msgs/Image    │                  │   Detection2DArray
-└─────────────────┘                         └──────────────────┘
-        │                                           │
-        │ source:=                                  │ model:=
-        │ • sim (static images) ✓                   │ • yolo (YOLOv8) ✓
-        │ • webcam (USB camera) ✓                   │
-        │ • gazebo (ros2 launch) ✓           ┌──────────────────┐     /tracks
-        │                                    │  tracker_node    │ ──────────────────▶
-        │                                    │ (with trail viz) │   Detection2DArray
-        │                                    └──────────────────┘   + track IDs
-        │                                           │ tracker:=
-        │                                           │ • botsort (default) ✓
-        │                                           │ • bytetrack ✓
-        │                                           │
-        │                                    ┌──────────────────┐
-        │                                    │   depth_node     │ → /depth/image
-        │                                    └──────────────────┘
-        │                                           │ method:=
-        │                                           │ • midas (monocular) ✓
-        │                                           │ • realsense (future)
-        │
-        │                                    Future nodes:
-        │                                    • pose_node (6DoF pose estimation)
-        │                                    • segmentation_node
-        │
-                                                    │ /tracks/image
-                                                    ▼
-                                            (annotated image with trajectory trails)
+┌─────────────┐
+│ camera_node │ (/camera/image_raw)
+│ (Gazebo/USB)│
+└──────┬──────┘
+       │
+       ├────────────────────┬─────────────────────────────┐
+       ▼                    ▼                             ▼
+┌──────────────┐    ┌────────────┐                 ┌───────────┐
+│ tracker_node │    │ depth_node │                 │  viz_node │
+│  (YOLOv8 +   │    │  (MiDaS)   │                 │           │
+│  BoT-SORT)   │    └─────┬──────┘                 └───────────┘
+└──────┬───────┘          │                              ▲
+       │                  │ /depth/raw (32FC1)           │
+       │ /tracks          │ /depth/image (viz)           │
+       │                  │                              │
+       └────────┬─────────┘                              │
+                ▼                                        │
+┌───────────────────────────────┐                        │
+│    object_estimator_node      │                        │
+│  (combines 2D + depth → 3D)   │                        │
+│                               │                        │
+│  Output: /objects             │────────────────────────┤
+│  - 3D position                │                        │
+│  - 3D orientation             │                        │
+│  - 3D dimensions              │                        │
+│  - class, confidence, ID      │                        │
+└───────────────┬───────────────┘                        │
+                │                                        │
+                ▼                                        │
+┌───────────────────────────────┐                        │
+│         grasp_node            │                        │
+│  (predicts grasp points)      │────────────────────────┘
+│                               │   /grasps
+│  Input: /objects only         │
+│  Output: /grasps (PoseArray)  │
+└───────────────────────────────┘
 ```
 
-**YOLOv8**: Auto-downloads on first run (~6MB), runs on PyTorch + CUDA.
+### Topics
 
-### Full Pipeline Vision (retail robotics-style)
+| Topic | Type | Description |
+|-------|------|-------------|
+| `/camera/image_raw` | Image | Raw camera feed |
+| `/tracks` | Detection2DArray | Tracked objects with 2D bbox + class |
+| `/tracks/image` | Image | Annotated with boxes + trails |
+| `/depth/raw` | Image (32FC1) | Raw depth values (float) |
+| `/depth/image` | Image (BGR) | Depth visualization (colormap) |
+| `/objects` | Detection3DArray | Complete 3D object state |
+| `/objects/image` | Image | Object state visualization |
+| `/grasps` | PoseArray | Grasp points + approach direction |
+| `/grasps/image` | Image | Grasp visualization |
+| `/viz/grid` | Image | Raw \| Depth \| Combined (3-up) |
+| `/viz/overlay` | Image | Full resolution combined view |
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                              PERCEPTION                                       │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  camera_node ──▶ detector_node ──▶ depth_node ──▶ tracking_node             │
-│       │              │                 │               │                     │
-│   RGB image     2D bboxes          depth map      object IDs                │
-│                      │                 │               │                     │
-│                      └────────┬────────┘               │                     │
-│                               ▼                        │                     │
-│                        pose_node ◀─────────────────────┘                     │
-│                            │                                                 │
-│                      6DoF object pose                                        │
-│                            │                                                 │
-├────────────────────────────┼─────────────────────────────────────────────────┤
-│                            ▼                                                 │
-│                     grasp_node                                               │
-│                          │                                                   │
-│                   grasp points                                               │
-│                          │                                                   │
-├──────────────────────────┼───────────────────────────────────────────────────┤
-│                          ▼                          PLANNING & CONTROL       │
-│                    planner_node ──▶ controller_node ──▶ robot                │
-│                          │               │                                   │
-│                    motion plan      joint commands                           │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
+### Message Types
 
-Current:  ✅ camera_node, detector_node, depth_node, tracker_node, Gazebo simulation
-Future:   ⬜ pose_node, segmentation_node, grasp_node
-Later:    ⬜ planner_node, controller_node
-
-Gazebo Simulation:
-  ✅ v1: Simple 4-DOF arm + shelf + simulated camera + ros2_control
-  ⬜ v2: Custom TX-style SCARA arm + convenience store shelf with real product models
-```
-
-### Development Workflow
-
-```
-┌─────────────────┐      git push      ┌─────────────────┐
-│   MacBook Pro   │ ─────────────────▶ │     Gitea       │
-│   (code editor) │                    │   (git server)  │
-└─────────────────┘                    └─────────────────┘
-                                               │
-                                               │ git pull
-                                               ▼
-                                       ┌─────────────────────────────────────┐
-                                       │      Linux PC (Pop!_OS + RTX)       │
-                                       │  ┌───────────────────────────────┐  │
-                                       │  │   Docker Container            │  │
-                                       │  │  ┌─────────────────────────┐  │  │
-                                       │  │  │ ROS2 + PyTorch + CUDA   │  │  │
-                                       │  │  │ camera_node             │  │  │
-                                       │  │  │ perception_node         │  │  │
-                                       │  │  └─────────────────────────┘  │  │
-                                       │  └───────────────────────────────┘  │
-                                       │           │                         │
-                                       │           │ X11 (GUI)               │
-                                       │           ▼                         │
-                                       │      ┌─────────┐                    │
-                                       │      │ Monitor │ ← Gazebo/RViz      │
-                                       │      └─────────┘                    │
-                                       └─────────────────────────────────────┘
-                                               │
-                                               │ Future: same code runs on
-                                               ▼
-                                       ┌─────────────────┐
-                                       │  Robot (Jetson) │
-                                       │  Real cameras   │
-                                       └─────────────────┘
-```
-
-**The magic:** Same ROS2 code runs in simulation (Docker) and on real robot. Just swap camera source.
-
-### Visualization
-
-View detections in real-time:
-
-```bash
-# Inside container, Terminal 3:
-ros2 run rqt_image_view rqt_image_view
-# Select topic: /detections/image
-```
-
-Or echo detection messages:
-```bash
-ros2 topic echo /detections
-```
+| Message | Contents |
+|---------|----------|
+| `Detection2DArray` | 2D bounding boxes, class, confidence, track ID |
+| `Detection3DArray` | 3D bbox (pose + size), class, confidence, track ID |
+| `PoseArray` | List of 3D poses (position + orientation) |
+| `Image (32FC1)` | Single-channel float depth values |
+| `Image (BGR)` | Standard color image |
 
 ---
 
-## ROS Core Concepts
+## Nodes
 
-### What is ROS?
-- **Robot Operating System** - not actually an OS, but a middleware/framework
-- Provides communication between processes (nodes)
-- Industry standard for robotics software
-- Think of it like Flask/Django for web → ROS for robots
+### perception_demo package
 
-### Key Concepts
+| Node | Description | Key Parameters |
+|------|-------------|----------------|
+| `camera_node` | Camera source | `source:=webcam\|sim` |
+| `detector_node` | YOLO detection only | `model_path:=...` |
+| `tracker_node` | Detection + tracking | `tracker:=botsort\|bytetrack`, `model_path:=...` |
+| `depth_node` | Monocular depth | `method:=midas` |
+| `object_estimator_node` | 3D object state estimation | `detection_topic:=...`, `depth_topic:=...` |
+| `grasp_node` | Grasp prediction | `objects_topic:=/objects`, `gripper_max_width:=0.1` |
+| `viz_node` | Combined visualization | `cell_width:=320` |
+| `teleop_node` | Keyboard arm control | - |
 
-| Concept | Description | Example |
-|---------|-------------|---------|
-| **Node** | A separate OS process that does one thing well | `detection_node`, `camera_node` |
-| **Topic** | Named channel for messages (pub/sub) | `/camera/image`, `/detections` |
-| **Message** | Data structure sent over topics | `sensor_msgs/Image`, `geometry_msgs/Pose` |
-| **Publisher** | Node that sends messages to a topic | Camera publishes images |
-| **Subscriber** | Node that receives messages from a topic | Detector subscribes to images |
-| **Service** | Request/response (synchronous) | "Take a photo" → returns image |
-| **Action** | Long-running task with feedback | "Navigate to shelf" → progress updates |
+### robot_description package
 
-### ROS1 vs ROS2
-
-| | ROS1 | ROS2 |
-|---|---|---|
-| Python API | `rospy` | `rclpy` |
-| C++ API | `roscpp` | `rclcpp` |
-| Master | Required (`roscore`) | No master (DDS) |
-| Real-time | Limited | Better support |
-| Status | Legacy (ends 2025) | Current standard |
-
-We'll use **ROS2 Humble** (LTS, supported until 2027).
-
-### Nodes in Detail - Are They Really Separate Processes?
-
-**Yes! Each node is a separate OS process.**
-
-```bash
-# When you run nodes, you can see them as separate processes:
-$ ps aux | grep ros
-user  1234  python3 detection_node    # Process 1
-user  1235  python3 camera_node       # Process 2
-user  1236  arm_controller_node       # Process 3 (could be C++)
-```
-
-**In production robots:**
-- Nodes can be **Python** (`rclpy`) or **C++** (`rclcpp`)
-- C++ often used for performance-critical nodes (control loops, real-time)
-- Python often used for perception, high-level logic
-- Nodes can run on **same machine** or **distributed across multiple computers**
-- Communication via **DDS** (Data Distribution Service) - handles networking automatically
-
-**Example: Real robot setup**
-```
-┌─────────────────────┐     Network      ┌─────────────────────┐
-│  Jetson (on robot)  │◄────────────────►│  Workstation (GPU)  │
-│  - motor_control    │                  │  - perception_node  │
-│  - sensor_drivers   │                  │  - planning_node    │
-│  - arm_controller   │                  │  - visualization    │
-└─────────────────────┘                  └─────────────────────┘
-```
-
-DDS handles message passing across the network transparently.
-
-**Why separate processes?**
-- **Isolation** - one node crashes, others keep running
-- **Modularity** - swap out perception node without touching arm control
-- **Distributed** - spread across multiple computers
-- **Language flexibility** - mix Python and C++ nodes
-
-### Common Message Types
-
-```
-sensor_msgs/Image          # Camera images (RGB, depth)
-sensor_msgs/PointCloud2    # 3D point clouds (LiDAR, depth camera)
-geometry_msgs/Pose         # Position (x,y,z) + orientation (quaternion)
-geometry_msgs/Twist        # Velocity (linear + angular)
-std_msgs/String            # Simple string
-std_msgs/Float32           # Simple float
-```
-
-### TF (Transforms)
-
-Coordinate frame transforms - essential for perception:
-- Where is the object relative to the camera?
-- Where is the camera relative to the robot base?
-- Where is the robot relative to the world?
-
-```
-world
-  └── robot_base
-        └── arm_link_1
-              └── arm_link_2
-                    └── camera_link
-```
-
-`tf2` library lets you query: "Where is object X in the robot_base frame?"
+| File | Description |
+|------|-------------|
+| `urdf/robot.urdf.xacro` | 4-DOF arm with camera |
+| `worlds/shelf.world` | Simple colored primitives |
+| `worlds/shelf_realistic.world` | 3D models (coke cans, beer) |
+| `config/controllers.yaml` | ros2_control config |
+| `launch/simulation.launch.py` | Launch Gazebo + robot |
 
 ---
 
-## If You've Built a Distributed System Before, You Already Know ROS
+## Object Estimation & Grasp Prediction
 
-**Example: Quant trading system architecture = ROS architecture**
+### Object Estimator Node (object_estimator_node)
 
-| Quant Trading System | ROS Equivalent |
-|----------------------|----------------|
-| Separate processes (Python/Golang/Rust/C++) | Nodes |
-| Redis pub/sub | Topics (via DDS) |
-| Websocket connector process | Camera driver node |
-| Strategy/live trading process | Planning/control node |
-| Data processing process | Perception node |
-| Message queues | Topics with message types |
-
-If you've built microservices or distributed systems, you already understand ROS conceptually.
-
-### Redis Pub/Sub vs DDS (ROS2)
-
-| Aspect | Redis Pub/Sub | DDS (ROS2 Topics) |
-|--------|---------------|-------------------|
-| Architecture | Central broker (Redis server) | Peer-to-peer (no broker) |
-| Discovery | Manual (connect to Redis) | Auto-discovery on network |
-| QoS (Quality of Service) | Basic | Rich (reliability, deadline, liveliness) |
-| Real-time | No guarantees | Designed for real-time |
-| Message types | Strings/bytes (you serialize) | Strongly typed (defined .msg files) |
-| Use case | General purpose | Robotics, defense, aerospace |
-| Failure mode | Redis dies = all dead | No single point of failure |
-
-**Key DDS features for robotics:**
-- **Reliability**: "Deliver this message even if network hiccups" vs "best effort"
-- **Deadline**: "Warn me if message doesn't arrive within 100ms"
-- **Liveliness**: "Detect if a node crashed"
-- **History**: "Keep last N messages for late subscribers"
-
-**In practice:** DDS is more robust for safety-critical robotics. Redis is fine for trading/web apps where occasional message loss is acceptable.
-
-### How Perception Fits in ROS
+Combines 2D detection with depth to produce complete 3D object state.
 
 ```
-Camera Driver Node                    Your Perception Node                 Planning Node
-     │                                       │                                  │
-     │ publishes                             │ subscribes                       │ subscribes
-     ▼                                       ▼                                  ▼
-/camera/image_raw ──────────────────▶ runs YOLO ──────────────────▶ /detections
-                                             │
-                                             │ publishes
-                                             ▼
-                                      DetectionArray
-                                      - class: "coca_cola"
-                                      - bbox: [x, y, w, h]
-                                      - confidence: 0.95
-                                      - position_3d: [x, y, z]
+Input:
+  - /tracks (Detection2DArray) - 2D bounding boxes + class
+  - /depth/raw (Image, 32FC1) - raw depth values
+
+Output:
+  - /objects (Detection3DArray) - complete 3D object state:
+    - 3D position [X, Y, Z]
+    - 3D orientation (quaternion)
+    - 3D dimensions [width, height, depth]
+    - class name, confidence, track ID
+
+Method:
+1. Get bbox center (u, v) in pixels
+2. Sample depth at center (center-weighted average)
+3. Back-project to 3D:
+   X = (u - cx) * Z / fx
+   Y = (v - cy) * Z / fy
+   Z = depth
+4. Estimate dimensions from bbox size + depth:
+   width = pixel_width * Z / fx
+   height = pixel_height * Z / fy
 ```
+
+**Key design:** Single source of truth for 3D object state. Downstream nodes (grasp, planning) use this output.
+
+### Grasp Node (grasp_node)
+
+Predicts grasp points from 3D object state.
+
+```
+Input:  /objects (Detection3DArray) - has everything needed!
+Output: /grasps (PoseArray) - grasp poses with approach direction
+
+Method:
+1. Check object dimensions (from /objects):
+   - Tall & thin (h > 1.5w) → side grasp
+   - Wide (w > gripper_max) → top grasp
+2. Offset grasp point from object center:
+   - Side: 40% from top
+   - Top: 15% from top
+3. Set approach direction (encoded in quaternion)
+```
+
+**Grasp types:**
+```
+    ┌─────────┐
+    │  ████   │ ← top grasp (bottles with narrow neck)
+    │  ████   │
+    │  ●═══●  │ ← side grasp (cans, standard bottles)
+    │  ████   │
+    └─────────┘
+```
+
+**Grasp feasibility:** Shows "TOO WIDE" if object width > gripper_max_width.
+
+### Data Flow (Clean Architecture)
+
+```
+tracker_node ──┐
+               ├──→ object_estimator_node ──→ grasp_node
+depth_node ────┘           │
+                           ▼
+                    Single /objects topic contains:
+                    - Position (from depth)
+                    - Dimensions (from bbox + depth)
+                    - Class/ID (from tracker)
+```
+
+**Why this is better:**
+- Grasp doesn't re-sample depth (no duplicate work)
+- Single source of truth for 3D state
+- Easy to swap object_estimator implementation
+- Clean separation of concerns
+
+### Production Alternatives
+
+| Component | Demo | Production |
+|-----------|------|------------|
+| Depth | MiDaS (relative) | RGB-D sensor (Intel RealSense) |
+| Object Estimation | Geometry heuristic | FoundationPose, PoseCNN, DenseFusion |
+| Grasp | Bbox heuristic | Contact-GraspNet, Dex-Net, GraspNet |
+
+**Key design:** "The architecture is modular - `object_estimator_node` can be swapped from simple geometry to FoundationPose without changing grasp_node at all."
+
+---
+
+## Gazebo Simulation
+
+### World Options
+
+```bash
+# Simple (colored primitives - faster)
+ros2 launch robot_description simulation.launch.py world:=simple
+
+# Realistic (3D models - requires gazebo_models)
+ros2 launch robot_description simulation.launch.py world:=realistic
+```
+
+### Setup Gazebo Models (for realistic world)
+
+```bash
+# Inside container - one time setup
+cd /root
+git clone https://github.com/osrf/gazebo_models.git .gazebo/models
+```
+
+### Robot Arm
+
+4-DOF arm with camera mounted on end-effector:
+
+| Joint | Axis | Range | Motion |
+|-------|------|-------|--------|
+| shoulder_pan | Z | ±3.14 rad | Rotate base |
+| shoulder_lift | Y | ±1.57 rad | Tilt up/down |
+| elbow | Y | ±2.5 rad | Bend |
+| wrist | Z | ±3.14 rad | Rotate |
+
+---
+
+## Custom Model
+
+The demo includes a fine-tuned YOLOv8 model for cold drinks:
+
+```bash
+# Use custom model
+ros2 run perception_demo tracker_node --ros-args \
+  -p model_path:=/ros_ws/models/cold_drinks.pt
+```
+
+**Classes:** 27 beverage types (Coca-Cola, Pepsi, Sprite, etc.)
+
+---
 
 ## Project Structure
 
 ```
 ros-perception-demo/
-├── README.md
-├── docker-compose.yml        # Container config (GPU, volumes, X11)
-├── .env.example              # Template for local paths
 ├── docker/
-│   └── Dockerfile            # ROS2 Humble + PyTorch + CUDA + ros2_control
+│   └── Dockerfile           # ROS2 + PyTorch + CUDA + Gazebo
+├── models/
+│   └── cold_drinks.pt       # Fine-tuned YOLO model
 ├── src/
-│   ├── perception_demo/      # ROS2 Python package (perception nodes)
-│   │   ├── package.xml
-│   │   ├── setup.py
-│   │   └── perception_demo/
-│   │       └── nodes/
-│   │           ├── camera/   # Camera sources
-│   │           │   ├── sim.py      # Static test images
-│   │           │   └── webcam.py   # USB webcam
-│   │           ├── depth/    # Depth estimation
-│   │           │   └── midas.py    # Monocular (MiDaS)
-│   │           ├── detector/ # Object detection
-│   │           │   └── yolo.py     # YOLOv8
-│   │           └── tracker/  # Object tracking
-│   │               └── yolo_tracker.py  # BoT-SORT / ByteTrack
-│   └── robot_description/    # ROS2 CMake package (Gazebo simulation)
-│       ├── urdf/
-│       │   └── robot.urdf.xacro    # 4-DOF arm with camera
-│       ├── worlds/
-│       │   └── shelf.world         # Convenience store shelf
-│       ├── config/
-│       │   └── controllers.yaml    # ros2_control config
-│       └── launch/
-│           └── simulation.launch.py
-├── data/
-│   └── test_images/          # Test images
-└── models/                   # Model weights (*.pt gitignored)
-```
-
-### Why is everything under robot_description?
-
-**ROS convention.** For simple projects, one package holds everything about the robot:
-- URDF/meshes (robot model)
-- Worlds (environments for this robot)
-- Controllers (ros2_control config)
-- Launch files
-
-**For larger projects, you'd split:**
-```
-my_robot_description/   # Just URDF, meshes
-my_robot_gazebo/        # Worlds, Gazebo plugins
-my_robot_control/       # Controllers
-my_robot_bringup/       # Launch files
-```
-
-## Setup
-
-### Prerequisites
-- Linux PC with NVIDIA GPU (tested: Pop!_OS 22.04, RTX 2060)
-- Docker with NVIDIA Container Toolkit
-- Git
-
-### Environment Variables (.env)
-
-```bash
-# External data path for large files (not in git)
-ROS_DEMO_DATA=/mnt/your-drive/ros-perception-demo-data
-
-# X11 display for GUI (check with `echo $DISPLAY`)
-DISPLAY=:0
-```
-
-### GUI Access (Gazebo, RViz)
-
-```bash
-# Allow Docker to access X11 display
-xhost +local:docker
-
-# Then docker compose up will show GUI on your monitor
-```
-
-## Learning Path
-
-### Day 1: ROS Basics
-- [ ] Understand nodes, topics, pub/sub
-- [ ] Run example nodes in Docker
-- [ ] Use `ros2 topic list`, `ros2 topic echo`
-
-### Day 2: Build Camera Node
-- [ ] Create a node that publishes test images
-- [ ] Learn `sensor_msgs/Image` format
-- [ ] Use `cv_bridge` to convert OpenCV ↔ ROS
-
-### Day 3: Build Detection Node
-- [ ] Subscribe to camera topic
-- [ ] Run YOLOv8 inference
-- [ ] Publish detection results
-
-### Day 4: Integration & Review
-- [ ] Run full pipeline
-- [ ] Review ROS concepts for project
-- [ ] Practice explaining the system
-
-## ROS2 Cheat Sheet
-
-```bash
-# List all nodes
-ros2 node list
-
-# List all topics
-ros2 topic list
-
-# See messages on a topic
-ros2 topic echo /camera/image
-
-# Topic info (message type, publishers, subscribers)
-ros2 topic info /camera/image
-
-# Message structure
-ros2 interface show sensor_msgs/msg/Image
-
-# Run a node
-ros2 run <package> <node>
-
-# Launch multiple nodes
-ros2 launch <package> <launch_file.py>
+│   ├── perception_demo/     # Python package
+│   │   └── nodes/
+│   │       ├── camera/      # Camera sources
+│   │       ├── detector/    # YOLO detection
+│   │       ├── tracker/     # BoT-SORT/ByteTrack
+│   │       ├── depth/       # MiDaS depth
+│   │       ├── pose/        # 6DoF pose estimation
+│   │       ├── grasp/       # Grasp prediction
+│   │       ├── viz/         # Combined visualization
+│   │       └── teleop/      # Keyboard arm control
+│   └── robot_description/   # Gazebo simulation
+│       ├── urdf/            # Robot model
+│       ├── worlds/          # Environments
+│       ├── config/          # ros2_control
+│       └── launch/          # Launch files
+└── README.md
 ```
 
 ---
 
-## Gazebo Simulation (This Demo)
+## Development Workflow
 
-### What We Built
+```
+MacBook (code) → git push → Gitea → git pull → Linux PC (run)
+                                                    │
+                                              Docker + GPU
+                                              ROS2 + Gazebo
+```
 
-- **4-DOF robot arm** with camera on end-effector
-- **Shelf world** with colored products (bottles, boxes, cans)
-- **ros2_control** for joint position control
-- Camera publishes to `/camera/image_raw` (same topic as webcam)
-
-### Moving the Arm
-
+**Rebuild after changes:**
 ```bash
-# Move arm to look at shelf
-ros2 action send_goal /joint_trajectory_controller/follow_joint_trajectory \
-  control_msgs/action/FollowJointTrajectory \
-  "{trajectory: {joint_names: [shoulder_pan_joint, shoulder_lift_joint, elbow_joint, wrist_joint], \
-  points: [{positions: [0.0, 1.0, -1.5, 0.0], time_from_start: {sec: 2}}]}}"
+# Code changes only
+colcon build --packages-select perception_demo
+
+# New files added (need clean rebuild)
+rm -rf build/perception_demo install/perception_demo
+colcon build --packages-select perception_demo
+source install/setup.bash
 ```
-
-**Joint positions in radians:**
-| Joint | Axis | Range | Description |
-|-------|------|-------|-------------|
-| shoulder_pan | Z | ±3.14 | Rotate base left/right |
-| shoulder_lift | Y | ±1.57 | Tilt forward/back |
-| elbow | Y | ±2.5 | Bend elbow |
-| wrist | Z | ±3.14 | Rotate wrist |
-
-### ros2_control Architecture
-
-```
-Your command (action goal)
-    ↓
-joint_trajectory_controller (interpolates smooth path)
-    ↓
-ros2_control hardware interface
-    ↓
-gazebo_ros2_control plugin
-    ↓
-Gazebo physics simulation
-    ↓
-Joint states published to /joint_states
-```
-
-**Why ros2_control?**
-- Industry standard for robot control
-- Same interface for simulation AND real robot
-- Just swap the hardware interface plugin
-
----
-
-## ROS vs Gazebo vs Isaac Sim
-
-These are different tools that work together:
-
-| Tool | What it does | Analogy |
-|------|--------------|---------|
-| **ROS** | Communication between nodes | The "nervous system" |
-| **Gazebo** | Physics simulation | The "virtual world" |
-| **Isaac Sim** | NVIDIA's simulator (GPU-accelerated) | Premium "virtual world" |
-| **RViz** | Visualization (no physics) | The "debug viewer" |
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Gazebo (Physics Sim)                     │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │   Robot     │  │   Shelf     │  │   Beverages         │  │
-│  │   Model     │  │   Model     │  │   (physics objects) │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-│         │                                                   │
-│         │ Simulated sensors (camera, depth, lidar)          │
-│         ▼                                                   │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │              ROS2 Topics                            │    │
-│  │  /camera/image  /depth/image  /robot/joint_states   │    │
-│  └─────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-              ┌───────────────────────────────┐
-              │     Your Perception Node      │
-              │  (same code as real robot!)   │
-              └───────────────────────────────┘
-```
-
-**The magic:** Your perception code doesn't know if images come from real camera or Gazebo. Same code works in simulation and real robot.
-
-### Gazebo on Mac / Docker
-
-| Option | Works? | Notes |
-|--------|--------|-------|
-| Native Mac | ❌ | Not supported |
-| Docker + X11 | ⚠️ | Possible but tricky (XQuartz) |
-| Docker + VNC | ✅ | Works well, access via browser |
-| Docker headless | ✅ | No GUI, but can save images/videos |
-
-**For project:** Gazebo is optional. Focus on ROS basics first. If time permits, we can add Gazebo with VNC.
-
-### Gazebo Setup (Optional - Stretch Goal)
-
-We'll add to docker-compose.yml:
-- Gazebo Fortress (works with ROS2 Humble)
-- VNC server for GUI access
-- Simple shelf + beverages world
-
-```yaml
-# Access Gazebo GUI at: http://localhost:6080
-```
-
----
-
-## retail robotics-Relevant Simulation Ideas
-
-If we add Gazebo, we could simulate:
-
-1. **Convenience store shelf** with beverage products
-2. **TX SCARA robot arm** (or simplified version)
-3. **Camera mounted on arm** publishing images
-4. **Your perception node** detecting products
-5. **Grasp planning** based on detections
-
-This would be impressive to mention in practice: *"I built a ROS2 + Gazebo simulation of a shelf-stocking scenario to prepare for this role."*
 
 ---
 
 ## References
 
-- [ROS2 Humble Docs](https://docs.ros.org/en/humble/)
-- [ROS2 Tutorials](https://docs.ros.org/en/humble/Tutorials.html)
-- [cv_bridge (ROS ↔ OpenCV)](https://github.com/ros-perception/vision_opencv)
-- [Gazebo Sim](https://gazebosim.org/)
-- [ROS2 + Gazebo Integration](https://gazebosim.org/docs/harmonic/ros2_integration)
-
----
-
-## Appendix
-
-### RQT Tools
-
-**RQT** = ROS Qt GUI toolkit. Useful tools:
-
-| Tool | Command | Purpose |
-|------|---------|---------|
-| Image viewer | `ros2 run rqt_image_view rqt_image_view` | View camera/detection images |
-| Topic monitor | `ros2 run rqt_topic rqt_topic` | See all topics and messages |
-| Node graph | `ros2 run rqt_graph rqt_graph` | Visualize node connections |
-| Console | `ros2 run rqt_console rqt_console` | View logs from all nodes |
-
-### Docker on Mac (Alternative Setup)
-
-If you don't have a Linux PC with GPU, you can run on Mac with limitations:
-
-**Docker on Mac = Linux inside a container.**
-
-- ROS is built for Ubuntu - native Mac install is painful
-- Docker runs a lightweight Linux environment
-- Your Mac stays clean, ROS runs in isolated Linux container
-- Industry standard - retail robotics likely uses Docker too
-- Easy to delete and start fresh
-- Reproducible environment (like Python venv but for entire OS)
-
-```
-┌─────────────────────────────────────┐
-│           Your Mac (macOS)          │
-│  ┌───────────────────────────────┐  │
-│  │     Docker Container (Linux)  │  │
-│  │  ┌─────────────────────────┐  │  │
-│  │  │   ROS2 + PyTorch        │  │  │
-│  │  │   Your perception nodes │  │  │
-│  │  └─────────────────────────┘  │  │
-│  └───────────────────────────────┘  │
-└─────────────────────────────────────┘
-```
-
-**Limitations on Mac:**
-- No NVIDIA GPU → CPU inference only (slower)
-- GUI (Gazebo/RViz) requires XQuartz or VNC
-- Apple Silicon (M1/M2) needs ARM images
-
-**Recommendation:** Use Linux PC with NVIDIA GPU for best experience.
+- [ROS2 Humble](https://docs.ros.org/en/humble/)
+- [Ultralytics YOLOv8](https://docs.ultralytics.com/)
+- [MiDaS Depth](https://github.com/isl-org/MiDaS)
+- [Gazebo Classic](https://classic.gazebosim.org/)
+- [ros2_control](https://control.ros.org/)
