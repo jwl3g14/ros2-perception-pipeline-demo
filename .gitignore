@@ -28,3 +28,5 @@ models/*.onnx
 
 # Environment (local paths)
 .env
+*.mov
+*.mp4
