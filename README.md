@@ -3,7 +3,6 @@
 A complete perception-to-grasp pipeline for retail robotics, built with ROS2 Humble.
 
 **Author:** Jin Wei Lim
-**Purpose:** 
 
 ## What This Demo Shows
 
@@ -487,7 +486,7 @@ depth_node ────┘           │
 | Object Estimation | Geometry heuristic | FoundationPose, PoseCNN, DenseFusion |
 | Grasp | Bbox heuristic | Contact-GraspNet, Dex-Net, GraspNet |
 
-**Key design:** "The architecture is modular - `object_estimator_node` can be swapped from simple geometry to FoundationPose without changing grasp_node at all."
+**Key design:** The architecture is modular - `object_estimator_node` can be swapped from simple geometry to FoundationPose without changing grasp_node at all.
 
 ---
 
